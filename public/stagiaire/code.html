@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Code Stagiaire - Horloge</title>
+  <style>
+    body {
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at center, #001f3f, #000);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  color: white;
+}
+
+#notification {
+  background: #00c3ff;
+  color: #fff;
+  padding: 15px;
+  text-align: center;
+  width: 100%;
+  font-weight: bold;
+  box-shadow: 0 0 15px #00c3ff;
+}
+
+#notification.hidden {
+  display: none;
+}
+
+#notification input {
+  padding: 8px;
+  margin-top: 10px;
+  border-radius: 5px;
+  border: none;
+}
+
+#notification button {
+  padding: 8px 15px;
+  margin-left: 10px;
+  background: #00ff99;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.container {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.clock {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border: 8px solid #00c3ff;
+  border-radius: 50%;
+  margin: 0 auto;
+  box-shadow: 0 0 25px #00c3ff, inset 0 0 25px #00c3ff;
+}
+
+.hand {
+  position: absolute;
+  width: 50%;
+  height: 3px;
+  background: #ffcc00;
+  top: 50%;
+  transform-origin: 100%;
+  transform: rotate(0deg);
+  transition: transform 0.5s ease-in-out;
+}
+
+.center {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#countdownNumber {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 15px #00c3ff;
+}
+
+.numbers span {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transform: rotate(calc(30deg * var(--i)));
+  font-size: 16px;
+  color: #fff;
+}
+
+#message {
+  font-size: 20px;
+  margin-top: 30px;
+  color: #ffcc00;
+  text-shadow: 0 0 10px #ffcc00;
+}
+
+#code {
+  font-size: 40px;
+  font-weight: bold;
+  margin-top: 20px;
+  color: #00ff99;
+  text-shadow: 0 0 20px #00ff99;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.8s ease-in-out;
+}
+
+#code.show {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+#error {
+  color: red;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+/* LOGO */
+.logo-container {
+  text-align: center;
+  margin: 20px 0;
+  margin-bottom: 40px; /* ✅ plus de distance avec le contenu */
+}
+
+.logo {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #fff;
+  padding: 8px;
+  /* ❌ suppression de la brillance */
+  transition: transform 0.3s ease;
+}
+
+.logo:hover {
+  transform: scale(1.1);
+}
+
+  </style>
+<header> 
+  <!-- Logo -->
+  <div class="logo-container">
+    <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
+  </div>
+</header>
+<body>
+
+  <!-- Notification simulée -->
+  <div id="notification" class="hidden">
+    <p>Veuillez confirmer l’accès à votre compte à travers votre code :</p>
+    <input type="text" id="inputCode" placeholder="Entrez votre code">
+    <button onclick="verifierCode()">Confirmer</button>
+    <p id="error"></p>
+  </div>
+
+  <div class="container">
+    
+    <div class="clock">
+      <div class="numbers"></div>
+      <div class="hand second" id="secondHand"></div>
+      <div class="center"></div>
+      <div id="countdownNumber">5</div>
+    </div>
+    <p id="message"></p>
+    <p id="code" class="hidden"></p>
+  </div>
+   <!-- Lien vers le JS externe -->
+  <script>
+let timeLeft = 5;
+const secondHand = document.getElementById("secondHand");
+const countdownNumber = document.getElementById("countdownNumber");
+const messageElement = document.getElementById("message");
+const codeElement = document.getElementById("code");
+const notificationElement = document.getElementById("notification");
+const errorElement = document.getElementById("error");
+
+// Génération d'un code unique (simulation)
+const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+const timer = setInterval(() => {
+  countdownNumber.textContent = timeLeft;
+
+  // Rotation de l’aiguille des secondes
+  const angle = (5 - timeLeft) * 72; // 360° / 5 secondes = 72° par seconde
+  secondHand.style.transform = `rotate(${angle}deg)`; // ✅ correction avec backticks
+
+  timeLeft--;
+
+  if (timeLeft < 0) {
+    clearInterval(timer);
+    document.querySelector(".clock").style.display = "none";
+    messageElement.textContent = "Voici votre code personnel :";
+    codeElement.textContent = code;
+    codeElement.classList.add("show");
+
+    // Afficher la notification simulée
+    notificationElement.classList.remove("hidden");
+  }
+}, 1000);
+
+// Vérification du code et redirection
+function verifierCode() {
+  const input = document.getElementById("inputCode").value.toUpperCase();
+  if (input === code) {
+    window.location.href = "stagiaire.php"; // nouvelle page simulée
+  } else {
+    errorElement.textContent = "Code incorrect. Accès refusé.";
+  }
+}
+
+  </script>
+</body>
+</html>

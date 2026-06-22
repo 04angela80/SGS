@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SGS - Connexion Admin</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <STYLE>
+        /* =======================
+   RESET
+======================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* =======================
+   BODY – soft & clean
+======================= */
+body {
+    font-family: 'Poppins', sans-serif;
+    height: 100vh;
+    background:
+        radial-gradient(circle at top left, #e0f2fe, transparent 60%),
+        radial-gradient(circle at bottom right, #ede9fe, transparent 60%),
+        #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1f2937;
+    overflow: hidden;
+}
+
+/* =======================
+   HERO FORM (FLOAT CARD)
+======================= */
+.hero-form {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    padding: 34px 0;
+    background: linear-gradient(
+        135deg,
+        #38bdf8,
+        #7c3aed,
+        #c084fc
+    );
+    border-radius: 38px;
+    box-shadow:
+        0 50px 90px rgba(124,58,237,0.35),
+        inset 0 0 40px rgba(255,255,255,0.15);
+    overflow: hidden;
+    animation: floatCard 6s ease-in-out infinite;
+}
+
+/* =======================
+   GLOW LAYER
+======================= */
+.hero-form::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background: radial-gradient(
+        circle,
+        rgba(255,255,255,0.25),
+        transparent 70%
+    );
+    animation: glowMove 8s linear infinite;
+}
+
+/* =======================
+   OVERLAY
+======================= */
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        rgba(0,0,0,0.25),
+        rgba(0,0,0,0.35)
+    );
+    backdrop-filter: blur(6px);
+}
+
+/* =======================
+   FORM CONTAINER
+======================= */
+.form-container {
+    position: relative;
+    z-index: 2;
+    padding: 30px 28px;
+    text-align: center;
+}
+
+/* =======================
+   LOGO – floating
+======================= */
+.logo-container {
+    margin-bottom: 20px;
+}
+
+.logo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: #ffffff;
+    padding: 8px;
+    object-fit: cover;
+    box-shadow: 0 18px 35px rgba(0,0,0,0.4);
+    animation: floatLogo 4s ease-in-out infinite;
+}
+
+/* =======================
+   TITLES
+======================= */
+h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+p {
+    font-size: 14px;
+    margin-bottom: 22px;
+    color: #e0e7ff;
+}
+
+/* =======================
+   CARD
+======================= */
+.card {
+    background: rgba(255,255,255,0.96);
+    border-radius: 26px;
+    padding: 32px 30px;
+    box-shadow:
+        0 30px 60px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* =======================
+   INPUTS – interactive
+======================= */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid #e5e7eb;
+    font-size: 14px;
+    background: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.form-group input:hover {
+    border-color: #c084fc;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow:
+        0 0 0 4px rgba(124,58,237,0.25),
+        0 10px 25px rgba(124,58,237,0.25);
+}
+
+/* =======================
+   BUTTON – sexy CTA
+======================= */
+.btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    background: linear-gradient(
+        135deg,
+        #38bdf8,
+        #7c3aed
+    );
+    box-shadow:
+        0 20px 45px rgba(124,58,237,0.6);
+    transition: all 0.35s ease;
+}
+
+.btn:hover {
+    transform: translateY(-4px) scale(1.06);
+    box-shadow:
+        0 30px 65px rgba(124,58,237,0.75);
+}
+
+/* =======================
+   ANIMATIONS
+======================= */
+@keyframes floatCard {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes floatLogo {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes glowMove {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+    </STYLE>
+</head>
+<body>
+
+<section class="hero-form">
+    <div class="overlay"></div>
+
+    <div class="form-container animated-form">
+
+        <!-- Logo -->
+        <div class="logo-container">
+            <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
+        </div>
+
+        <h1>Connexion Administrateur</h1>
+        <p>Accès réservé aux administrateurs du système</p>
+
+        <!-- Formulaire -->
+        <form 
+            id="formConnexion"
+            class="card form-horizontal"
+            method="post"
+        >
+
+            <div class="form-group">
+                <label for="matricule">Matricule</label>
+                <input 
+                    type="text"
+                    id="matricule"
+                    name="matricule"
+                    placeholder="Ex: ADM001"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">Adresse e-mail</label>
+                <input 
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="admin@sgs.com"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input 
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="••••••••"
+                    required
+                >
+            </div>
+
+         <button type="submit" class="btn">Connexion</button>
+        </form>
+
+    </div>
+</section>
+
+<!-- JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('formConnexion');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Empêche l'envoi normal du formulaire
+
+        // Récupération des valeurs
+        const matricule = document.getElementById('matricule').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        // Identifiants autorisés
+        const MATRICULE_ADMIN = "SI0042";
+        const PASSWORD_ADMIN = "0000";
+
+        // Vérification des champs vides
+        if (!matricule || !password) {
+            alert("Veuillez remplir tous les champs.");
+            return;
+        }
+
+        // Vérification stricte des identifiants
+        if (matricule === MATRICULE_ADMIN && password === PASSWORD_ADMIN) {
+            // ✅ Identifiants corrects → redirection
+            window.location.href = "liste.php";
+        } else {
+            // ❌ Identifiants incorrects → message de fraude
+            alert("⚠️ Tentative de fraude ou code mal écrit.");
+        }
+    });
+});
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Rapports des stagiaires</title>
+  <style>
+    /* === RESET GLOBAL === */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f8ff;
+}
+
+/* === HEADER SUPÉRIEUR === */
+.top-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(90deg, #0056b3, #003d80);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+.top-header .header-title {
+  font-size: 1.4em;
+  font-weight: bold;
+  margin: 0;
+  letter-spacing: 1px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.top-header .header-icons {
+  position: absolute;
+  right: 20px;
+  display: flex;
+  gap: 15px;
+  font-size: 22px;
+  cursor: pointer;
+}
+.top-header .header-icons span:hover {
+  transform: scale(1.2);
+}
+
+/* === BOUTON MENU === */
+.menu-btn {
+  position: fixed;
+  top: 15px; left: 15px;
+  background: #0056b3;
+  color: #fff;
+  padding: 10px 15px;
+  cursor: pointer;
+  border-radius: 5px;
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* === SIDEBAR === */
+.sidebar {
+  position: fixed;
+  left: -250px;
+  top: 0;
+  width: 250px;
+  height: 100vh;
+  background: linear-gradient(180deg, #0056b3, #003d80);
+  color: #fff;
+  padding: 20px;
+  transition: left 0.5s ease;
+  z-index: 999;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.show { left: 0; }
+
+.logo-container {
+  margin-top: 30px;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.logo {
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease;
+}
+.logo:hover { transform: scale(1.05); }
+
+.sidebar ul {
+  list-style: none;
+  padding: 0; margin: 0;
+  flex: 1;
+}
+.sidebar ul li { margin: 20px 0; }
+.sidebar ul li a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  display: flex;          /* icône + texte alignés */
+  align-items: center;
+  white-space: nowrap;
+  padding: 12px 15px;
+  border-radius: 6px;
+  transition: background 0.3s;
+}
+.sidebar ul li a i {
+  margin-right: 8px;
+  font-size: 18px;                   
+  flex-shrink: 0;
+}
+.sidebar ul li a:hover,
+.sidebar ul li a.active {
+  background: rgba(255,255,255,0.2);
+}
+.logout { margin-top: auto; }
+
+/* === RAPPORTS ADMINISTRATIFS === */
+.rapport {
+  margin-top: 60px;
+  text-align: center;
+}
+.rapport h3 {
+  color: #003d80;
+  margin-bottom: 25px;
+  font-size: 1.6em;
+}
+.rapport-cards {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+.rapport-card {
+  flex: 1;
+  max-width: 220px;
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.8s forwards;
+}
+.rapport-card.total { background: #0056b3; }
+.rapport-card.presence { background: #28a745; }
+.rapport-card.taches { background: #ffc107; color: #333; }
+.rapport-card.alertes { background: #dc3545; }
+.rapport-table {
+  width: 90%;
+  margin: 0 auto;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.rapport-table th, .rapport-table td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+.rapport-table th {
+  background: #2a5298;
+  color: white;
+}
+.rapport-table button {
+  background: #0056b3;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rapport-table button:hover {
+  background: #003d80;
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes zoomIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes zoomOut {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.7); opacity: 0; }
+}
+  </style>
+  <!-- Ajout de Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="top-header">
+    <h1 class="header-title"><i class="fas fa-thumbtack"></i>Rapports des stagiaires</h1>
+    <div class="header-icons">
+      <span class="notif"><i class="fas fa-bell"></i></span>
+      <span class="admin"><i class="fas fa-user-shield"></i></span>
+    </div>
+  </div>
+
+  <!-- Bouton menu -->
+  <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-container">
+      <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
+    </div>
+    <ul>
+      <li><a href="liste.php"><i class="fas fa-home"></i> Accueil</a></li>
+      <li><a href="gestion.php"><i class="fas fa-users"></i> Gestion des dossiers</a></li>
+      <li><a href="evaluations.html"><i class="fas fa-chart-bar"></i> Évaluation & Résultats</a></li>
+      <li><a href="suivi.html"><i class="fas fa-thumbtack"></i> Suivi des taches</a></li>
+      <li><a href="rapport.html"class="active"><i class="fas fa-thumbtack"></i> Rapports</a></li>
+      <li><a href="SERVICES.php"><i class="fas fa-tools"></i> Services</a></li>
+     <li class="logout"><a href="../../public/index.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
+    </ul>
+  </aside>
+
+  <!-- Contenu principal -->
+  <main class="container">
+
+    <!-- Section Rapports administratifs -->
+    <section class="rapport">
+      <div class="rapport-cards">
+        <div class="rapport-card total">
+          <h4><i class="fas fa-users"></i> Total stagiaires</h4>
+          <p>5</p>
+        </div>
+        <div class="rapport-card presence">
+          <h4><i class="fas fa-chart-line"></i> Taux moyen de participation</h4>
+          <p>71%</p>
+        </div>
+        <div class="rapport-card taches">
+          <h4><i class="fas fa-tasks"></i> Tâches complétées</h4>
+          <p>12 / 20</p>
+        </div>
+        <div class="rapport-card alertes">
+          <h4><i class="fas fa-exclamation-triangle"></i> Alertes</h4>
+          <p>2 stagiaires en difficulté</p>
+        </div>
+      </div>
+
+      <table class="rapport-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Établissement</th>
+            <th>Score global</th>
+            <th>Rapport détaillé</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>John Smith</td>
+            <td>Université de Kinshasa</td>
+            <td>80%</td>
+            <td><button><i class="fas fa-eye"></i> Voir rapport</button></td>
+          </tr>
+          <tr>
+            <td>Marie Luma</td>
+            <td>Université Protestante</td>
+            <td>65%</td>
+            <td><button><i class="fas fa-eye"></i> Voir rapport</button></td>
+          </tr>
+          <tr>
+            <td>Patrick Nsimba</td>
+            <td>Université de Lubumbashi</td>
+            <td>70%</td>
+            <td><button><i class="fas fa-eye"></i> Voir rapport</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Modals -->
+    <div id="modalDetails" class="modal hidden">
+      <div class="modal-content">
+        <span class="close" onclick="fermerModal()">&times;</span>
+        <h3 id="modalTitle"></h3>
+        <ul id="modalList"></ul>
+      </div>
+    </div>
+    <!-- Modal rapport -->
+    <div id="modalRapport" class="modal hidden">
+      <div class="modal-content">
+        <span class="close" onclick="fermerModalRapport()">&times;</span>
+        <h3 id="rapportTitle"></h3>
+        <ul id="rapportList"></ul>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // === MENU LATERAL ===
+function toggleMenu() {
+  document.getElementById('sidebar').classList.toggle('show');
+}
+
+// === MODAL RAPPORT ===
+function afficherRapport(type) {
+  let list = document.getElementById('rapportList');
+  list.innerHTML = "";
+
+  if (type === "total") {
+    document.getElementById('rapportTitle').innerText = "Stagiaires ayant déposé leur rapport";
+    rapportsData.total.filter(s => s.rapportDepose).forEach(s => {
+      let li = document.createElement("li");
+      li.innerText = s.nom;
+      list.appendChild(li);
+    });
+  }
+  else if (type === "presence") {
+    document.getElementById('rapportTitle').innerText = "Taux de participation par stagiaire";
+    rapportsData.presence.forEach(s => {
+      let li = document.createElement("li");
+      li.innerText = `${s.nom} : ${s.taux}`;
+      list.appendChild(li);
+    });
+  }
+  else if (type === "taches") {
+    document.getElementById('rapportTitle').innerText = "Tâches complétées par stagiaire";
+    rapportsData.taches.forEach(s => {
+      let li = document.createElement("li");
+      li.innerText = `${s.nom} : ${s.complet}`;
+      list.appendChild(li);
+    });
+  }
+  else if (type === "alertes") {
+    document.getElementById('rapportTitle').innerText = "Stagiaires en difficulté";
+    rapportsData.alertes.forEach(s => {
+      let li = document.createElement("li");
+      li.innerText = `${s.nom} → ${s.probleme}`;
+      list.appendChild(li);
+    });
+  }
+
+  document.getElementById('modalRapport').classList.remove('hidden');
+}
+
+function voirRapportStagiaire(nom) {
+  let list = document.getElementById('rapportList');
+  document.getElementById('rapportTitle').innerText = `Rapport détaillé de ${nom}`;
+  list.innerHTML = `
+    <li>Présence : ${rapportsData.presence.find(s => s.nom === nom)?.taux || "N/A"}</li>
+    <li>Tâches : ${rapportsData.taches.find(s => s.nom === nom)?.complet || "N/A"}</li>
+    <li>Alertes : ${rapportsData.alertes.find(s => s.nom === nom)?.probleme || "Aucune"}</li>
+  `;
+  document.getElementById('modalRapport').classList.remove('hidden');
+}
+
+function fermerModalRapport() {
+  let modal = document.getElementById('modalRapport');
+  modal.classList.add('closing');
+  setTimeout(() => {
+    modal.classList.remove('closing');
+    modal.classList.add('hidden');
+  }, 300);
+}
+
+// === LIEN ENTRE LES CARTES ET LES MODALS ===
+window.onload = () => {
+  document.getElementById("cardPresent").onclick = () => {
+    afficherPresence("present", presenceData.present);
+  };
+  document.getElementById("cardAbsent").onclick = () => {
+    afficherPresence("absent", presenceData.absent);
+  };
+
+  // Cartes rapports
+  document.querySelector(".rapport-card.total").onclick = () => afficherRapport("total");
+  document.querySelector(".rapport-card.presence").onclick = () => afficherRapport("presence");
+  document.querySelector(".rapport-card.taches").onclick = () => afficherRapport("taches");
+  document.querySelector(".rapport-card.alertes").onclick = () => afficherRapport("alertes");
+
+  // Boutons "Voir rapport" dans tableau résumé
+  document.querySelectorAll(".rapport-table button").forEach(btn => {
+    btn.onclick = () => {
+      let nom = btn.closest("tr").children[0].innerText;
+      voirRapportStagiaire(nom);
+    };
+  });
+};
+
+  </script>
+</body>
+</html>
