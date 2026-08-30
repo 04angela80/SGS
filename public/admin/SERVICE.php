@@ -14,18 +14,16 @@ try {
     $stmtCount = $bdd->query("SELECT service, COUNT(*) as total FROM stagiaires WHERE statut = 'validé' GROUP BY service");
     $counts = [];
     while ($row = $stmtCount->fetch(PDO::FETCH_ASSOC)) {
-        // Nettoyage des espaces pour éviter les décalages de clés
         $key = trim($row['service']);
         $counts[$key] = $row['total'];
     }
 
-    // 3. REQUÊTE POUR LES MODALES : On récupère les stagiaires validés et on utilise leur 'filiere' comme département
+    // 3. REQUÊTE POUR LES MODALES
     $stmtStagiaires = $bdd->query("SELECT nom, prenom, service, filiere FROM stagiaires WHERE statut = 'validé' ORDER BY filiere ASC, nom ASC");
     $stagiaires_par_service = [];
 
     while ($stg = $stmtStagiaires->fetch(PDO::FETCH_ASSOC)) {
         $srv = trim($stg['service']);
-        // Si jamais la filière est vide en BDD, on met "General" par sécurité
         $dept = !empty($stg['filiere']) ? trim($stg['filiere']) : 'General';
         $nomComplet = htmlspecialchars($stg['prenom']) . ' ' . htmlspecialchars(strtoupper($stg['nom']));
 
@@ -42,14 +40,7 @@ try {
     die("Erreur lors du chargement des données : " . $e->getMessage());
 }
 
-// 🌟 CONFIGURATION ADAPTÉE SANS ACCENTS SUR LES CLÉS DE RECHERCHE
-$config_services = [
-    "Informatique" => ["icone" => "fas fa-laptop-code", "min" => 10, "desc" => "Developpement web, Reseaux et Securite"],
-    "Finance" => ["icone" => "fas fa-coins", "min" => 4, "desc" => "Comptabilite et Audit"],
-    "Marketing" => ["icone" => "fas fa-bullhorn", "min" => 4, "desc" => "Digital et Etudes de marche"],
-    "Ressources Humaines" => ["icone" => "fas fa-users-cog", "min" => 4, "desc" => "Recrutement et Formation"]
-];
-// Configuration calquée exactement sur les majuscules de ta base de données
+// CONFIGURATION DES SERVICES
 $config_services = [
     "Informatique" => ["icone" => "fas fa-laptop-code", "min" => 10, "desc" => "Developpement, Reseaux et Securite"],
     "Finance" => ["icone" => "fas fa-coins", "min" => 4, "desc" => "Comptabilite et Audit"],
@@ -62,105 +53,181 @@ $config_services = [
 <head>
   <meta charset="UTF-8">
   <title>SGS - Services</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     /* =======================
        RESET & BASE STYLE
     ======================= */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f4f4f9;
-      display: flex;
+    
+    body { 
+      margin: 0; 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      background: #f8fafc; 
+      color: #334155;
+      overflow-x: hidden; 
+    }
+    
+    /* HEADER FIXE */
+    .top-header { 
+      position: fixed; 
+      top: 0; left: 0; right: 0; 
+      height: 60px; 
+      background: linear-gradient(90deg, #0056b3, #003d80); 
+      color: #fff; 
+      display: flex; 
+      align-items: center; 
+      padding: 0 20px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
+      z-index: 1000; 
     }
 
-    /* =======================
-       HEADER SUPÉRIEUR
-    ======================= */
-    .top-header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 60px;
-      background: linear-gradient(90deg, #0056b3, #003d80);
-      color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      z-index: 1000;
-    }
-
-    .top-header .header-title {
-      font-size: 1.4em;
+    /* BOUTON MENU */
+    .menu-btn { 
       font-weight: bold;
-      margin: 0;
-      letter-spacing: 1px;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
+      color: #fff; 
+      cursor: pointer; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 8px; 
+      font-size: 1.1em;
+      user-select: none;
+      z-index: 1001;
+      margin-right: auto;
     }
 
-    .top-header .header-icons {
-      position: absolute;
-      right: 20px;
-      display: flex;
-      gap: 15px;
-      font-size: 22px;
-      cursor: pointer;
+    .top-header .header-title { 
+      font-size: 1.4em; 
+      font-weight: bold; 
+      margin: 0; 
+      letter-spacing: 1px; 
+      position: absolute; 
+      left: 50%; 
+      transform: translateX(-50%); 
     }
 
-    .top-header .header-icons span:hover { transform: scale(1.2); }
-
-    /* Bouton menu sidebar */
-    .menu-btn {
-      position: fixed; top: 15px; left: 15px;
-      background: #0056b3; color: #fff;
-      padding: 10px 15px; cursor: pointer;
-      border-radius: 5px; z-index: 1000;
-      display: inline-flex; align-items: center; gap: 6px;
+    .top-header .header-icons { 
+      position: absolute; 
+      right: 20px; 
+      display: flex; 
+      gap: 15px; 
+      font-size: 22px; 
+      cursor: pointer; 
+    }
+    .top-header .header-icons span:hover { transform: scale(1.1); }
+    .bell-count { 
+      position: absolute; 
+      top: -5px; 
+      right: -7px; 
+      background: #ff4d4d; 
+      color: white; 
+      font-size: 11px; 
+      padding: 1px 5px; 
+      border-radius: 10px; 
+      font-weight: bold; 
     }
 
-    /* =======================
-       SIDEBAR (BARRE LATÉRALE)
-    ======================= */
-    .sidebar {
-      position: fixed; left: -250px; top: 0;
-      width: 250px; height: 100vh;
-      background: linear-gradient(180deg, #0056b3, #003d80);
-      color: #fff; padding: 20px;
-      transition: left 0.5s ease; z-index: 999;
-      overflow-y: auto; display: flex; flex-direction: column;
+    /* SIDEBAR CORRIGÉE : Complètement vide lorsqu'elle est fermée */
+    .sidebar { 
+      position: fixed; 
+      left: -225px; /* Laisse dépasser exactement 45px de bande bleue pure */
+      top: 0; 
+      width: 270px; /* Élargie à 270px pour éviter que le blanc ne coupe les écritures */
+      height: 100vh; 
+      background: linear-gradient(180deg, #0056b3, #003d80); 
+      color: #fff; 
+      padding: 15px 20px; 
+      transition: left 0.4s ease; 
+      z-index: 999; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
     }
-
+    
+    /* Quand on ouvre le menu */
     .sidebar.show { left: 0; }
-
-    .logo-container { margin-top: 30px; margin-bottom: 25px; text-align: center; }
-    .logo {
-      width: 90px; height: 90px; border-radius: 50%;
-      background: #fff; padding: 6px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-      transition: transform 0.3s ease;
+    
+    /* LOGO : S'affiche uniquement quand le menu est ouvert */
+    .logo-container { 
+      margin-top: 25px; 
+      margin-bottom: 20px; 
+      text-align: center; 
+      transition: opacity 0.3s;
+      opacity: 0; 
     }
-    .logo:hover { transform: scale(1.05); }
+    .sidebar.show .logo-container { opacity: 1; }
 
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar ul li { margin: 20px 0; }
-    .sidebar ul li a {
-      color: #fff; text-decoration: none; font-weight: bold;
-      display: flex; align-items: center; white-space: nowrap;
-      padding: 12px 15px; border-radius: 6px; transition: background 0.3s;
+    .logo { 
+      width: 90px; 
+      height: 90px; 
+      border-radius: 50%; 
+      background: #fff; 
+      padding: 6px; 
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3); 
     }
-    .sidebar ul li a i { margin-right: 8px; font-size: 18px; flex-shrink: 0; }
-    .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.2); }
-    .logout { margin-top: auto; }
 
-    /* =======================
-       CONTENU DU DESIGN SERVICES
-    ======================= */
+    /* LISTE DES MENUS ET CONTENUS TOTALEMENT CACHÉS QUAND FERMÉ */
+    .sidebar ul { 
+      list-style: none; 
+      padding: 0; 
+      margin: 0; 
+      opacity: 0; /* Totalement invisible par défaut */
+      transition: opacity 0.2s ease;
+    }
+    /* Devient visible uniquement quand la sidebar est ouverte */
+    .sidebar.show ul { 
+      opacity: 1; 
+    }
+
+    .sidebar ul li { margin: 12px 0; } 
+    
+    .sidebar ul li a { 
+      color: #fff; 
+      text-decoration: none; 
+      font-weight: bold; 
+      display: flex; 
+      align-items: center; 
+      white-space: nowrap; 
+      padding: 12px 20px; 
+      font-size: 15px; 
+      border-radius: 8px; 
+      transition: background 0.3s; 
+    }
+    
+    .sidebar ul li a i { 
+      margin-right: 15px; 
+      font-size: 20px; 
+      flex-shrink: 0; 
+    }
+
+    .sidebar ul li a:hover, .sidebar ul li a.active { 
+      background: rgba(255,255,255,0.2); 
+    }
+
+    .logout { margin-top: 5px; }
+
+    /* FOOTER DU MENU */
+    .sidebar-footer {
+      margin-top: auto;
+      text-align: center;
+      padding-bottom: 15px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .sidebar.show .sidebar-footer { opacity: 1; }
+
+    .sidebar-divider { height: 1.5px; background: #ffffff; margin: 8px 0; border: none; }
+    .footer-text { font-size: 12px; color: #ffffff; font-weight: 600; letter-spacing: 0.5px; line-height: 1.4; }
+    .footer-sub { font-size: 10px; display: block; font-weight: 400; color: #f1f5f9; margin-top: 2px; }
+
+    /* CONTENU PRINCIPAL */
     .main-content {
-      flex: 1;
-      padding: 40px;
-      margin-top: 60px;
+      margin-top: 90px;
+      margin-left: 75px; 
+      margin-right: 30px;
+      padding: 10px 20px 40px 20px;
+      transition: none; 
     }
 
     .services-hero {
@@ -248,139 +315,128 @@ $config_services = [
       100% { transform: rotate(15deg); }
     }
   </style>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 
-  <div class="top-header">
-    <h1 class="header-title"><i class="fas fa-tools"></i> Services</h1>
-    <div class="header-icons">
-      <span class="notif" style="position: relative; display: inline-block;">
-        <?php if ($total_notifs_admin > 0): ?>
-          <i class="fas fa-bell" style="color: #ff4d4d; animation: bell-ring 0.4s ease infinite alternate;"></i>
-          <span style="position: absolute; top: -8px; right: -8px; background: #ff3333; color: white; border-radius: 50%; padding: 2px 7px; font-size: 12px; font-weight: bold;">
-            <?php echo $total_notifs_admin; ?>
-          </span>
-        <?php else: ?>
-          <i class="fas fa-bell" style="color: #fff;"></i>
-        <?php endif; ?>
-      </span>
-      <span class="admin"><i class="fas fa-user-shield"></i></span>
-    </div>
+<div class="top-header">
+  <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
+  
+  <h1 class="header-title"><i class="fas fa-tools"></i> Nos Services</h1>
+  
+  <div class="header-icons">
+    <span class="admin"><i class="fas fa-user-shield"></i></span>
   </div>
+</div>
 
-  <div class="menu-btn"><i class="fas fa-bars"></i> Menu</div>
-
-  <aside class="sidebar" id="sidebar">
-    <div class="logo-container">
-      <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
-    </div>
-    <ul>
-       <li><a href="liste.php" ><i class="fas fa-home"></i> Accueil</a></li>
+<aside class="sidebar" id="sidebar">
+  <div class="logo-container">
+    <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
+  </div>
+  <ul>
+      <li><a href="liste.php"><i class="fas fa-home"></i> Accueil</a></li>
       <li><a href="gestion.php"><i class="fas fa-users"></i> Gestion des stagiaires</a></li>
-      <li><a href="evaluations.html"><i class="fas fa-chart-bar"></i> Évaluation & Résultats</a></li>
-      <li><a href="suivi.php"><i class="fas fa-thumbtack"></i> Suivi des taches</a></li>
-      <li><a href="rapport.php"><i class="fas fa-thumbtack"></i> Rapports</a></li>
+      <li><a href="suivi.php"><i class="fas fa-chart-bar"></i>Suivi des stagiaires</a></li>
+      <li><a href="rapport.php"><i class="fas fa-thumbtack"></i>Rapports</a></li>
+      <li><a href="evaluations.php"><i class="fas fa-file-alt"></i>Évaluation & Résultats</a></li>
       <li><a href="SERVICE.php"class="active"><i class="fas fa-tools"></i> Services</a></li>
       <li class="logout"><a href="../../public/index.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
     </ul>
-  </aside>
-
-  <main class="main-content">
-    <section class="services-hero">
-      <div class="services-container">
-        <header class="header-services">
-          <h1><i class="fas fa-cogs"></i> Structure des Services</h1>
-          <p>Consultez l'état d'occupation et la répartition de vos stagiaires par spécialité</p>
-        </header>
-
-        <div class="cards-services">
-          <?php foreach ($config_services as $nom_service => $details): ?>
-            <?php $total_inscrits = isset($counts[$nom_service]) ? $counts[$nom_service] : 0; ?>
-            
-            <div class="card-service" onclick="ouvrirService('<?php echo htmlspecialchars(addslashes($nom_service)); ?>')">
-              <h2><i class="<?php echo $details['icone']; ?>"></i> <?php echo htmlspecialchars($nom_service); ?></h2>
-              <p><?php echo htmlspecialchars($details['desc']); ?></p>
-              <p class="min-stagiaires">Minimum requis : <?php echo $details['min']; ?> stagiaires</p>
-              <span class="badge-count"><?php echo $total_inscrits; ?> Affecte(s)</span>
-            </div>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <div id="modalService" class="modal hidden">
-    <div class="modal-content">
-      <span class="close" onclick="fermerModalService()">&times;</span>
-      <h2 id="serviceTitle" style="color: #4c1d95; margin-bottom: 10px;"></h2>
-      <div id="serviceDetails"></div>
+  <div class="sidebar-footer">
+    <hr class="sidebar-divider">
+    <div class="footer-text">
+      <span><i class="fas fa-user-shield"></i> SGS • Admin</span>
+      <span class="footer-sub">Système de Gestion des Stagiaires@2026</span>
     </div>
   </div>
+</aside>
 
-  <script>
-    // Gestion de l'affichage de la barre latérale
-    const menuBtn = document.querySelector('.menu-btn');
-    const sidebar = document.getElementById('sidebar');
+<main class="main-content" id="main-content">
+  <section class="services-hero">
+    <div class="services-container">
+      <header class="header-services">
+        <h1><i class="fas fa-cogs"></i> Structure des Services</h1>
+        <p>Consultez l'état d'occupation et la répartition de vos stagiaires par spécialité</p>
+      </header>
 
-    menuBtn.addEventListener('click', () => {
-      sidebar.classList.toggle('show');
-    });
-
-    document.addEventListener('click', (event) => {
-      const isClickInside = sidebar.contains(event.target) || menuBtn.contains(event.target);
-      if (!isClickInside && sidebar.classList.contains('show')) {
-        sidebar.classList.remove('show');
-      }
-    });
-
-    // Récupération sécurisée des données préparées par PHP
-    const bddStagiaires = <?php echo json_encode($stagiaires_par_service); ?>;
-    const configServices = <?php echo json_encode($config_services); ?>;
-
-    // Fonction d'ouverture et de construction de la liste des départements
-    function abrirModal(htmlContent) {
-      document.getElementById("serviceDetails").innerHTML = htmlContent;
-      document.getElementById("modalService").classList.remove("hidden");
-    }
-
-    function ouvrirService(serviceName) {
-      document.getElementById("serviceTitle").innerText = serviceName;
-      
-      let detailsHTML = `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">
-                          <strong>Quotas de l'equipe :</strong> Capacite minimale fixee a ${configServices[serviceName].min} personnes.
-                         </p>`;
-      
-      detailsHTML += `<div class="departements-box">`;
-
-      // Vérification si le service possède des spécialités et des stagiaires associés
-      if (bddStagiaires[serviceName] && Object.keys(bddStagiaires[serviceName]).length > 0) {
+      <div class="cards-services">
+        <?php foreach ($config_services as $nom_service => $details): ?>
+          <?php $total_inscrits = isset($counts[$nom_service]) ? $counts[$nom_service] : 0; ?>
           
-          for (const dept in bddStagiaires[serviceName]) {
-              // Génération dynamique du sous-titre de la filière (sans problème d'accents désormais)
-              detailsHTML += `<h4><i class="fas fa-folder-open" style="color: #0056b3; margin-right: 6px;"></i> Specialite : ${dept}</h4><ul>`;
-              
-              // Liste des noms associés à cette filière
-              bddStagiaires[serviceName][dept].forEach(stagiaire => {
-                  detailsHTML += `<li><i class="fas fa-user-check"></i> ${stagiaire}</li>`;
-              });
-              
-              detailsHTML += `</ul>`;
-          }
-      } else {
-          // Message si aucun stagiaire n'est validé dans ce service
-          detailsHTML += `<p style="font-style: italic; color: #9ca3af; text-align: center; margin-top: 25px; font-size: 14px;">
-                            <i class="fas fa-exclamation-circle"></i> Aucun stagiaire valide n'occupe ce service actuellement.
-                          </p>`;
-      }
-      
-      detailsHTML += `</div>`;
-      abrirModal(detailsHTML);
-    }
+          <div class="card-service" onclick="ouvrirService('<?php echo htmlspecialchars(addslashes($nom_service)); ?>')">
+            <h2><i class="<?php echo $details['icone']; ?>"></i> <?php echo htmlspecialchars($nom_service); ?></h2>
+            <p><?php echo htmlspecialchars($details['desc']); ?></p>
+            <p class="min-stagiaires">Minimum requis : <?php echo $details['min']; ?> stagiaires</p>
+            <span class="badge-count"><?php echo $total_inscrits; ?> Affecte(s)</span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+</main>
 
-    function fermerModalService() {
-      document.getElementById('modalService').classList.add('hidden');
+<div id="modalService" class="modal hidden">
+  <div class="modal-content">
+    <span class="close" onclick="fermerModalService()">&times;</span>
+    <h2 id="serviceTitle" style="color: #4c1d95; margin-bottom: 10px;"></h2>
+    <div id="serviceDetails"></div>
+  </div>
+</div>
+
+<script>
+  const sidebar = document.getElementById('sidebar');
+
+  function toggleMenu() {
+    sidebar.classList.toggle('show');
+  }
+
+  document.addEventListener('click', (event) => {
+    const menuBtn = document.querySelector('.menu-btn');
+    const isClickInside = sidebar.contains(event.target) || menuBtn.contains(event.target);
+    if (!isClickInside && sidebar.classList.contains('show')) {
+      toggleMenu();
     }
-  </script>
+  });
+
+  const bddStagiaires = <?php echo json_encode($stagiaires_par_service); ?>;
+  const configServices = <?php echo json_encode($config_services); ?>;
+
+  function abrirModal(htmlContent) {
+    document.getElementById("serviceDetails").innerHTML = htmlContent;
+    document.getElementById("modalService").classList.remove("hidden");
+  }
+
+  function ouvrirService(serviceName) {
+    document.getElementById("serviceTitle").innerText = serviceName;
+    
+    let detailsHTML = `<p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">
+                        <strong>Quotas de l'équipe :</strong> Capacité minimale fixée à ${configServices[serviceName].min} personnes.
+                       </p>`;
+    
+    detailsHTML += `<div class="departements-box">`;
+
+    if (bddStagiaires[serviceName] && Object.keys(bddStagiaires[serviceName]).length > 0) {
+        for (const dept in bddStagiaires[serviceName]) {
+            detailsHTML += `<h4><i class="fas fa-folder-open" style="color: #0056b3; margin-right: 6px;"></i> Spécialité : ${dept}</h4><ul>`;
+            
+            bddStagiaires[serviceName][dept].forEach(stagiaire => {
+                detailsHTML += `<li><i class="fas fa-user-check"></i> ${stagiaire}</li>`;
+            });
+            
+            detailsHTML += `</ul>`;
+        }
+    } else {
+        detailsHTML += `<p style="font-style: italic; color: #9ca3af; text-align: center; margin-top: 25px; font-size: 14px;">
+                          <i class="fas fa-exclamation-circle"></i> Aucun stagiaire validé n'occupe ce service actuellement.
+                        </p>`;
+    }
+    
+    detailsHTML += `</div>`;
+    abrirModal(detailsHTML);
+  }
+
+  function fermerModalService() {
+    document.getElementById('modalService').classList.add('hidden');
+  }
+</script>
 </body>
 </html>

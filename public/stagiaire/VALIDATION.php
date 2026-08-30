@@ -150,8 +150,7 @@ body {
         <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
         <h1>Inscription réussie</h1>
         <p>
-            Votre inscription a été enregistrée avec succès.<br>
-            L’administration traitera votre dossier dans les plus brefs délais.
+            Votre inscription a été validé avec succès.<br>
         </p>
         
 

@@ -71,19 +71,47 @@ $alertes_admin = recupererNotificationsRecentes($bdd, $admin_id, 'admin', 5);
     .top-header .header-icons span:hover { transform: scale(1.1); }
     .bell-count { position: absolute; top: -5px; right: -7px; background: #ff4d4d; color: white; font-size: 11px; padding: 1px 5px; border-radius: 10px; font-weight: bold; }
     
-    /* SIDEBAR (Totalement intacte) */
+  /* SIDEBAR & BOUTON INTELLIGENT CORRIGÉ */
     .menu-btn { position: fixed; top: 15px; left: 15px; background: #0056b3; color: #fff; padding: 10px 15px; cursor: pointer; border-radius: 5px; z-index: 1001; display: inline-flex; align-items: center; gap: 6px; }
-    .sidebar { position: fixed; left: -250px; top: 0; width: 250px; height: 100vh; background: linear-gradient(180deg, #0056b3, #003d80); color: #fff; padding: 20px; transition: left 0.5s ease; z-index: 999; overflow-y: auto; display: flex; flex-direction: column; }
+    
+    .sidebar { 
+      position: fixed; 
+      left: -250px; 
+      top: 0; 
+      width: 250px; 
+      height: 100vh; 
+      background: linear-gradient(180deg, #0056b3, #003d80); 
+      color: #fff; 
+      padding: 20px; 
+      transition: left 0.5s ease; 
+      z-index: 999; 
+      overflow-y: hidden; /* Supprime la barre noire de défilement */
+      display: flex; 
+      flex-direction: column; 
+    }
     .sidebar.show { left: 0; }
-    .logo-container { margin-top: 30px; margin-bottom: 25px; text-align: center; }
+    .logo-container { margin-top: 30px; margin-bottom: 20px; text-align: center; }
     .logo { width: 90px; height: 90px; border-radius: 50%; background: #fff; padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar ul li { margin: 20px 0; }
-    .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 12px 15px; border-radius: 6px; transition: background 0.3s; }
+    
+    /* MODIFICATION ICI : On réduit l'espace pour que tout remonte */
+    .sidebar ul { list-style: none; padding: 0; margin: 0; }
+    .sidebar ul li { margin: 12px 0; } /* Liens un peu plus serrés pour gagner de la place */
+    .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 10px 15px; border-radius: 6px; transition: background 0.3s; }
     .sidebar ul li a i { margin-right: 8px; font-size: 18px; flex-shrink: 0; }
     .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.2); }
-    .logout { margin-top: auto; }
     
+    /* ON ENLÈVE LE MARGIN-TOP AUTO QUI CASSAIT TOUT */
+    .logout { margin-top: 5px; } 
+
+    /* LE STYLE DU FOOTER NET ET BIEN VISIBLE */
+    .sidebar-footer {
+      margin-top: 15px;
+      text-align: center;
+      padding-bottom: 50px; /* Force le texte à remonter bien au-dessus de la barre des tâches Windows */
+    }
+    .sidebar-divider { height: 1.5px; background: #ffffff; margin: 10px 0; border: none; }
+    .footer-text { font-size: 13px; color: #ffffff; font-weight: 600; letter-spacing: 0.5px; line-height: 1.4; }
+    .footer-sub { font-size: 11px; display: block; font-weight: 400; color: #f1f5f9; margin-top: 2px; }
     /* CONTENEUR UNIQUE NET ET PRO */
     .container { padding: 100px 40px 40px 40px; max-width: 1200px; margin: 0 auto; }
     
@@ -129,14 +157,6 @@ $alertes_admin = recupererNotificationsRecentes($bdd, $admin_id, 'admin', 5);
   <div class="top-header">
     <h1 class="header-title"><i class="fas fa-users"></i> Gestion de dossiers d'inscription</h1>
     <div class="header-icons">
-      <span class="notif" style="position: relative; display: inline-block;">
-        <?php if ($total_notifs_admin > 0): ?>
-          <i class="fas fa-bell" style="color: #ff4d4d; animation: bell-ring 0.4s ease infinite alternate;"></i>
-          <span class="bell-count"><?php echo $total_notifs_admin; ?></span>
-        <?php else: ?>
-          <i class="fas fa-bell" style="color: #fff;"></i>
-        <?php endif; ?>
-      </span>
       <span class="admin"><i class="fas fa-user-shield"></i></span>
     </div>
   </div>
@@ -149,14 +169,22 @@ $alertes_admin = recupererNotificationsRecentes($bdd, $admin_id, 'admin', 5);
       <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
     </div>
     <ul>
-      <li><a href="liste.php" ><i class="fas fa-home"></i> Accueil</a></li>
+       <li><a href="liste.php"><i class="fas fa-home"></i> Accueil</a></li>
       <li><a href="gestion.php"class="active"><i class="fas fa-users"></i> Gestion des stagiaires</a></li>
-      <li><a href="evaluations.html"><i class="fas fa-chart-bar"></i> Évaluation & Résultats</a></li>
-      <li><a href="suivi.php"><i class="fas fa-thumbtack"></i> Suivi des taches</a></li>
-      <li><a href="rapport.php"><i class="fas fa-thumbtack"></i> Rapports</a></li>
+      <li><a href="suivi.php"><i class="fas fa-chart-bar"></i>Suivi des stagiaires</a></li>
+      <li><a href="rapport.php"><i class="fas fa-thumbtack"></i>Rapports</a></li>
+      <li><a href="evaluations.php"><i class="fas fa-file-alt"></i>Évaluation & Résultats</a></li>
       <li><a href="SERVICE.php"><i class="fas fa-tools"></i> Services</a></li>
       <li class="logout"><a href="../../public/index.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
     </ul>
+    <!-- Le footer est maintenant placé ici, en dehors de la liste, pour remonter proprement -->
+    <div class="sidebar-footer">
+      <hr class="sidebar-divider">
+      <div class="footer-text">
+        <span><i class="fas fa-user-shield"></i> SGS • Admin</span>
+        <span class="footer-sub">Systeme de Gestion des Stagiaires@2026</span>
+      </div>
+    </div>
   </aside>
 
   <!-- CONTENU PRINCIPAL -->

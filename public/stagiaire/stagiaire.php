@@ -4,27 +4,34 @@ session_start();
 // 1. Inclusions indispensables (BDD uniquement)
 require_once __DIR__ . '/../../config/db.php';
 
-// 2. Sécurité de session : si le stagiaire n'est pas connecté, retour au login
-if (!isset($_SESSION['id_stagiaire'])) {
-    header('Location: ../login.php');
+// Sécurité : Vérifier si la session existe
+if (!isset($_SESSION['id_stagiaire']) || empty($_SESSION['id_stagiaire'])) {
+    header('Location: ../../public/index.php');
     exit();
 }
 
 $stagiaire_id = intval($_SESSION['id_stagiaire']);
 
 try {
-    $sqlStg = "SELECT s.nom, s.prenom, s.filiere, ser.nom_service, ser.nom_encadrant " .
+    // Requête pour récupérer les informations du stagiaire
+    $sqlStg = "SELECT s.nom, s.prenom, s.filiere, ser.description AS vrai_service, ser.nom_encadrant " .
                "FROM stagiaires s " .
-               "LEFT JOIN services ser ON s.id_service_affecte = ser.id_service " .
-               "WHERE s.id = :id_stagiaire AND (LOWER(s.statut) = 'validé' OR LOWER(s.statut) = 'valide')";
+               "LEFT JOIN services ser ON LOWER(TRIM(ser.nom_service)) = LOWER(TRIM(s.filiere)) " .
+               "WHERE s.id = :id_stagiaire";
+               
     $stmtStg = $bdd->prepare($sqlStg);
     $stmtStg->execute(['id_stagiaire' => $stagiaire_id]);
     $monProfil = $stmtStg->fetch(PDO::FETCH_ASSOC);
 
+    // Si aucun profil correspondant n'est trouvé dans la BDD
     if (!$monProfil) {
-        session_destroy();
-        header('Location: ../login.php');
-        exit();
+        $monProfil = [
+            'nom' => 'Stagiaire',
+            'prenom' => 'Nom',
+            'filiere' => 'Non définie',
+            'vrai_service' => 'Informatique',
+            'nom_encadrant' => ''
+        ];
     }
 
 } catch (PDOException $e) {
@@ -81,71 +88,45 @@ try {
       border-radius: 20px;
     }
 
-    /* Bouton menu */
-    .menu-btn {
-      position: fixed; top: 15px; left: 15px;
-      background: #0056b3; color: #fff;
-      padding: 10px 15px; border-radius: 5px;
-      cursor: pointer; z-index: 1001;
-      font-weight: bold;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    /* Sidebar (Intacte) */
-    .sidebar {
-      position: fixed;
-      left: -250px;
-      top: 0;
-      width: 250px;
-      height: 100vh;
-      background: linear-gradient(180deg, #0056b3, #003d80);
-      color: #fff;
-      padding: 20px;
-      transition: left 0.5s ease;
-      z-index: 999;
-      display: flex;
-      flex-direction: column;
+    /* SIDEBAR & BOUTON INTELLIGENT */
+    .menu-btn { position: fixed; top: 15px; left: 15px; background: #0056b3; color: #fff; padding: 10px 15px; cursor: pointer; border-radius: 5px; z-index: 1001; display: inline-flex; align-items: center; gap: 6px; }
+    
+    .sidebar { 
+      position: fixed; 
+      left: -250px; 
+      top: 0; 
+      width: 250px; 
+      height: 100vh; 
+      background: linear-gradient(180deg, #0056b3, #003d80); 
+      color: #fff; 
+      padding: 20px; 
+      transition: left 0.5s ease; 
+      z-index: 999; 
+      overflow-y: hidden;
+      display: flex; 
+      flex-direction: column; 
     }
     .sidebar.show { left: 0; }
+    .logo-container { margin-top: 30px; margin-bottom: 20px; text-align: center; }
+    .logo { width: 90px; height: 90px; border-radius: 50%; background: #fff; padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    
+    .sidebar ul { list-style: none; padding: 0; margin: 0; }
+    .sidebar ul li { margin: 12px 0; }
+    .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 10px 15px; border-radius: 6px; transition: background 0.3s; }
+    .sidebar ul li a i { margin-right: 8px; font-size: 18px; flex-shrink: 0; }
+    .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.2); }
+    
+    .logout { margin-top: 5px; } 
 
-    .logo-container {
+    .sidebar-footer {
+      margin-top: 15px;
       text-align: center;
-      margin: 40px 0 25px;
+      padding-bottom: 50px;
     }
-    .logo {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      background: #fff;
-      padding: 6px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-      object-fit: cover;
-    }
+    .sidebar-divider { height: 1.5px; background: #ffffff; margin: 10px 0; border: none; }
+    .footer-text { font-size: 13px; color: #ffffff; font-weight: 600; letter-spacing: 0.5px; line-height: 1.4; }
+    .footer-sub { font-size: 11px; display: block; font-weight: 400; color: #f1f5f9; margin-top: 2px; }
 
-    /* Liste menu */
-    .sidebar ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      flex: 1;
-    }
-    .sidebar ul li { margin: 15px 0; }
-    .sidebar ul li a {
-      color: #fff;
-      text-decoration: none;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      white-space: nowrap;
-      padding: 12px 15px;
-      border-radius: 8px;
-      transition: background 0.3s;
-    }
-    .sidebar ul li a i { margin-right: 12px; font-size: 18px; flex-shrink: 0; }
-    .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.18); }
-    .logout { margin-top: auto; }
-
-    /* Contenu principal maximisé et enrichi */
     .main-content {
       flex: 1;
       margin-top: 95px;
@@ -156,7 +137,7 @@ try {
       width: 100%;
     }
 
-    /* BANNIÈRE DE BIENVENUE VIVANTE */
+    /* BANNIÈRE DE BIENVENUE */
     .welcome-card {
       background: var(--primary-gradient);
       color: white;
@@ -211,7 +192,7 @@ try {
       gap: 25px;
     }
 
-    /* CARTES ACTIONS RE-STYLISÉES ET MODERNES */
+    /* CARTES ACTIONS */
     .card {
       background: #fff;
       padding: 28px 24px;
@@ -239,9 +220,7 @@ try {
     }
     .card i { font-size: 26px; }
 
-    /* Couleurs harmonieuses thématiques par carte */
     .card.taches .card-icon-box { background: #eef2ff; color: #4f46e5; }
-    .card.encadrement .card-icon-box { background: #ecfdf5; color: #10b981; }
     .card.rapport .card-icon-box { background: #fff7ed; color: #f97316; }
     .card.resultat .card-icon-box { background: #fdf2f8; color: #db2777; }
     .card.profil .card-icon-box { background: #f0f9ff; color: #0284c7; }
@@ -283,48 +262,50 @@ try {
 </head>
 <body>
 
-  <!-- TOP HEADER ÉPURÉ (SANS CLOCHE) -->
   <div class="top-header">
     <h1 class="header-title"><i class="fas fa-cubes"></i> Mon Portail Stagiaire</h1>
     <div class="header-icons">
       <div class="user-info-top">
-        <i class="fas fa-circle-user"></i> <?php echo htmlspecialchars($monProfil['prenom']); ?>
+        <i class="fas fa-circle-user"></i> <?php echo htmlspecialchars($monProfil['prenom'] ?? ''); ?>
       </div>
     </div>
   </div>
-
+  
   <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
-
-  <!-- SIDEBAR (COULEURS ET LIENS INTACTS) -->
-  <div id="sidebar" class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="logo-container">
       <img src="../../LOGO.jpeg" alt="Logo" class="logo">
     </div>
     <ul>
       <li><a href="stagiaire.php" class="active"><i class="fas fa-home"></i> Accueil</a></li>
       <li><a href="taches.php"><i class="fas fa-tasks"></i> Mes tâches</a></li>
-       <li><a href="rapport.php"><i class="fas fa-file-alt"></i> Rapports</a></li>
+      <li><a href="rapport.php"><i class="fas fa-file-alt"></i> Rapports</a></li>
       <li><a href="resultats.PHP"><i class="fas fa-chart-line"></i> Résultats</a></li>
       <li><a href="profil.php"><i class="fas fa-cog"></i> Profil</a></li>
       <li class="logout"><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
     </ul>
-  </div>
+    <div class="sidebar-footer">
+      <hr class="sidebar-divider">
+      <div class="footer-text">
+        <span><i class="fas fa-user-graduate"></i> SGS • Stagiaire</span>
+        <span class="footer-sub">Systeme de Gestion des Stagiaires@2026</span>
+      </div>
+    </div>
+  </aside>
 
-  <!-- DEBUT DU CONTENU PRINCIPAL -->
   <div class="main-content">
     
-    <!-- BANNIÈRE DE BIENVENUE CHALEUREUSE ET PRO -->
     <section class="welcome-card">
       <div class="welcome-text">
-        <h2>Ravi de vous revoir, <?php echo htmlspecialchars($monProfil['prenom'] . ' ' . $monProfil['nom']); ?> 👋</h2>
+        <h2>Ravi de vous revoir, <?php echo htmlspecialchars(($monProfil['prenom'] ?? '') . ' ' . ($monProfil['nom'] ?? '')); ?> 👋</h2>
         <p>Votre espace de travail est prêt. Consultez votre progression et gérez vos livrables de stage en toute simplicité.</p>
         
         <div class="profile-badges">
           <div class="badge-info">
-            <i class="fas fa-graduation-cap"></i> <?php echo htmlspecialchars($monProfil['filiere']); ?>
+            <i class="fas fa-building"></i> Service : <?php echo htmlspecialchars($monProfil['vrai_service'] ?? 'Informatique'); ?>
           </div>
           <div class="badge-info">
-            <i class="fas fa-building"></i> <?php echo htmlspecialchars($monProfil['nom_service'] ?? 'Affectation en cours...'); ?>
+            <i class="fas fa-graduation-cap"></i> Filière : <?php echo htmlspecialchars($monProfil['filiere'] ?? 'Non renseignée'); ?>
           </div>
           <?php if(!empty($monProfil['nom_encadrant'])): ?>
             <div class="badge-info">
@@ -335,7 +316,6 @@ try {
       </div>
     </section>
 
-    <!-- GRILLE D'ACCÈS DU DASHBOARD INTERACTIF -->
     <h3 class="section-title">Raccourcis de suivi</h3>
     <section class="dashboard">
       
@@ -347,6 +327,7 @@ try {
         </div>
         <div class="card-footer-action">Consulter ma feuille <i class="fas fa-arrow-right"></i></div>
       </div>
+
       <div class="card rapport" onclick="window.location.href='rapport.php'">
         <div>
           <div class="card-icon-box"><i class="fas fa-file-alt"></i></div>
@@ -356,7 +337,7 @@ try {
         <div class="card-footer-action">Déposer un document <i class="fas fa-arrow-right"></i></div>
       </div>
 
-      <div class="card resultat" onclick="window.location.href='resultats.php'">
+      <div class="card resultat" onclick="window.location.href='resultats.PHP'">
         <div>
           <div class="card-icon-box"><i class="fas fa-chart-line"></i></div>
           <h2>Résultats</h2>

@@ -58,8 +58,7 @@ if ($stagiaire_id > 0) {
 
         <?php if ($stagiaire['statut'] === 'Refusé'): ?>
             <h1 style="color: #ff4d4d;">Inscription Refusée</h1>
-            <p>Désolé, votre demande d'inscription au Système de Gestion des Stagiaires a été rejetée par l'administration après examen.</p>
-            <a href="inscription.php" class="btn btn-danger">Retourner à l'inscription</a>
+            <p>Désolé, votre demande d'inscription au sein de l'entreprise a été rejetée par l'administration après examen.</p>
             
         <?php else: ?>
             <h1 style="color: #ffc107;">Inscription en attente</h1>

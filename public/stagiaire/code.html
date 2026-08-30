@@ -193,7 +193,6 @@ const codeElement = document.getElementById("code");
 const notificationElement = document.getElementById("notification");
 const errorElement = document.getElementById("error");
 
-// Génération d'un code unique (simulation)
 const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
 const timer = setInterval(() => {
@@ -204,7 +203,6 @@ const timer = setInterval(() => {
   secondHand.style.transform = `rotate(${angle}deg)`; // ✅ correction avec backticks
 
   timeLeft--;
-
   if (timeLeft < 0) {
     clearInterval(timer);
     document.querySelector(".clock").style.display = "none";

@@ -71,23 +71,45 @@ if ($id_stagiaire_connecte) {
     }
     .top-header .header-icons { position: absolute; right: 20px; display: flex; gap: 15px; font-size: 22px; cursor: pointer; }
     .top-header .header-icons span:hover { transform: scale(1.2); }
-    .menu-btn { position: fixed; top: 15px; left: 15px; background: #0056b3; color: #fff; padding: 10px 15px; cursor: pointer; border-radius: 5px; z-index: 1000; display: inline-flex; align-items: center; gap: 6px; }
+
+    /* SIDEBAR & BOUTON INTELLIGENT CORRIGÉ */
+    .menu-btn { position: fixed; top: 15px; left: 15px; background: #0056b3; color: #fff; padding: 10px 15px; cursor: pointer; border-radius: 5px; z-index: 1001; display: inline-flex; align-items: center; gap: 6px; }
     
-    .sidebar {
-      position: fixed; left: -250px; top: 0; width: 250px; height: 100vh;
-      background: linear-gradient(180deg, #0056b3, #003d80); color: #fff;
-      padding: 20px; transition: left 0.5s ease; z-index: 999;
-      overflow-y: auto; display: flex; flex-direction: column;
+    .sidebar { 
+      position: fixed; 
+      left: -250px; 
+      top: 0; 
+      width: 250px; 
+      height: 100vh; 
+      background: linear-gradient(180deg, #0056b3, #003d80); 
+      color: #fff; 
+      padding: 20px; 
+      transition: left 0.5s ease; 
+      z-index: 999; 
+      overflow-y: hidden;
+      display: flex; 
+      flex-direction: column; 
     }
     .sidebar.show { left: 0; }
-    .logo-container { margin-top: 30px; margin-bottom: 25px; text-align: center; }
-    .logo { width: 90px; height: 90px; border-radius: 50%; background: #fff; padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); transition: transform 0.3s ease; }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar ul li { margin: 20px 0; }
-    .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 12px 15px; border-radius: 6px; transition: background 0.3s; }
+    .logo-container { margin-top: 30px; margin-bottom: 20px; text-align: center; }
+    .logo { width: 90px; height: 90px; border-radius: 50%; background: #fff; padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    
+    .sidebar ul { list-style: none; padding: 0; margin: 0; }
+    .sidebar ul li { margin: 12px 0; } 
+    .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 10px 15px; border-radius: 6px; transition: background 0.3s; }
     .sidebar ul li a i { margin-right: 8px; font-size: 18px; flex-shrink: 0; }
     .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.2); }
-    .logout { margin-top: auto; }
+    
+    .logout { margin-top: 5px; } 
+
+    .sidebar-footer {
+      margin-top: 15px;
+      text-align: center;
+      padding-bottom: 50px; 
+    }
+    .sidebar-divider { height: 1.5px; background: #ffffff; margin: 10px 0; border: none; }
+    .footer-text { font-size: 13px; color: #ffffff; font-weight: 600; letter-spacing: 0.5px; line-height: 1.4; }
+    .footer-sub { font-size: 11px; display: block; font-weight: 400; color: #f1f5f9; margin-top: 2px; }
 
     /* ==========================================================================
        CONTENU CENTRAL
@@ -109,7 +131,7 @@ if ($id_stagiaire_connecte) {
     }
     .hidden { display: none !important; }
 
-    /* CARD D'ATTENTE AVEC TON DESIGN STRICT ET ANCIEN CODE */
+    /* CARD D'ATTENTE */
     .waiting-card {
       background: #ffffff; padding: 40px; border-radius: 16px;
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); border: 1px solid #e2e8f0;
@@ -189,7 +211,36 @@ if ($id_stagiaire_connecte) {
     }
     .note-circle.vert { background: #10b981; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
     .note-circle.rouge { background: #ef4444; box-shadow: 0 8px 20px rgba(239,68,68,0.3); }
-    .comment-text { font-style: italic; color: #4a5568; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #cbd5e1; margin-top: 20px; text-align: left; }
+    .comment-text { font-style: italic; color: #4a5568; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #cbd5e1; margin-top: 20px; text-align: left; margin-bottom: 25px; }
+    
+    /* BOUTON DE TÉLÉCHARGEMENT PDF (VISIBLE POUR TOUS) */
+    .download-pdf-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #0056b3, #003d80); /* Bleu pro pour s'adapter à toutes les notes */
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.05em;
+      padding: 14px 28px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 86, 179, 0.3);
+      transition: all 0.3s ease;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      cursor: pointer;
+    }
+    .download-pdf-btn:hover {
+      background: linear-gradient(135deg, #003d80, #00264d);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 86, 179, 0.45);
+    }
+    .download-pdf-btn i {
+      font-size: 1.2em;
+    }
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
   </style>
@@ -199,24 +250,33 @@ if ($id_stagiaire_connecte) {
   <div class="top-header">
     <h1 class="header-title"><i class="fas fa-chart-line"></i> Résultats</h1>
     <div class="header-icons">
-      <span class="bell" onclick="showNotifications()"><i class="fas fa-bell"></i></span>
-      <span class="user"><i class="fas fa-user-circle"></i></span>
+      <span class="user"><i class="fas fa-user-graduate"></i></span>
     </div>
   </div>
 
   <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
 
-  <div id="sidebar" class="sidebar">
-    <div class="logo-container"><img src="../../LOGO.jpeg" alt="Logo" class="logo"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-container">
+      <img src="../../LOGO.jpeg" alt="Logo" class="logo">
+    </div>
     <ul>
-      <li><a href="stagiaire.php"><i class="fas fa-home"></i> Accueil</a></li>
+      <li><a href="stagiaire.php" ><i class="fas fa-home"></i> Accueil</a></li>
       <li><a href="taches.php"><i class="fas fa-tasks"></i> Mes tâches</a></li>
-      <li><a href="rapport.php"><i class="fas fa-file-alt"></i> Rapports</a></li>
+       <li><a href="rapport.php"><i class="fas fa-file-alt"></i> Rapports</a></li>
       <li><a href="resultats.php" class="active"><i class="fas fa-chart-line"></i> Résultats</a></li>
       <li><a href="profil.php"><i class="fas fa-cog"></i> Profil</a></li>
       <li class="logout"><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
     </ul>
-  </div>
+    
+    <div class="sidebar-footer">
+      <hr class="sidebar-divider">
+      <div class="footer-text">
+        <span><i class="fas fa-user-graduate"></i> SGS • Stagiaire</span>
+        <span class="footer-sub">Systeme de Gestion des Stagiaires@2026</span>
+      </div>
+    </div> 
+  </aside>
 
   <div class="main-content">
     
@@ -261,6 +321,7 @@ if ($id_stagiaire_connecte) {
       </button>
     </div>
 
+    <!-- LE CADRE DE RÉSULTATS AVEC LE BOUTON DE TÉLÉCHARGEMENT PDF -->
     <div id="bloc-resultat" class="result-box hidden">
         <h3 style="margin:0; color:#003d80; font-size:1.5em;"><i class="fas fa-graduation-cap"></i> Résultats de Fin de Stage</h3>
         <p style="color:#64748b; font-size:0.95em; margin-top:5px;">Fiche de note officielle générée par l'administration</p>
@@ -275,6 +336,13 @@ if ($id_stagiaire_connecte) {
             <strong>Mention & Remarques du jury :</strong><br>
             <span id="valeur-commentaire">...</span>
         </div>
+
+        <!-- LE BOUTON DE TÉLÉCHARGEMENT APPARAÎTRA ICI POUR TOUS LES RÉSULTATS DISPONIBLES -->
+        <div id="zone-telechargement" class="hidden">
+            <a href="generer_attestation.php?stagiaire_id=<?php echo $id_stagiaire_connecte; ?>" class="download-pdf-btn" target="_blank">
+                <i class="fas fa-file-pdf"></i> Télécharger ma fiche d'évaluation officielle (PDF)
+            </a>
+        </div>
     </div>
 
   </div>
@@ -283,7 +351,7 @@ if ($id_stagiaire_connecte) {
     // Passage des données PHP vers des variables JavaScript sécurisées
     const bddStatut = "<?php echo $statutNote; ?>";
     const bddNote = "<?php echo $noteTrouvee; ?>";
-    const bddCommentaire = <?php echo json_encode($commentaire遊eve ?? $commentaireTrouve); ?>;
+    const bddCommentaire = <?php echo json_encode($commentaireTrouve); ?>;
 
     function toggleMenu() {
       document.getElementById("sidebar").classList.toggle("show");
@@ -327,11 +395,12 @@ if ($id_stagiaire_connecte) {
           
           const cercle = document.getElementById('cercle-note');
           const mention = document.getElementById('texte-mention');
+          const zoneTelechargement = document.getElementById('zone-telechargement');
           
-          // 3. Adapter les couleurs (Vert si >= 10, sinon rouge)
+          // 3. Adapter les couleurs et textes de mention
           if (note >= 10) {
             cercle.className = "note-circle vert";
-            mention.textContent = "Stage Validé avec Succès !";
+            mention.textContent = "Stage Validé avec Succès ! 🎉";
             mention.style.color = "#10b981";
           } else {
             cercle.className = "note-circle rouge";
@@ -339,7 +408,10 @@ if ($id_stagiaire_connecte) {
             mention.style.color = "#ef4444";
           }
           
-          // 4. Ouvrir le cadre des résultats des fins de stage !
+          // 4. On rend le bouton de téléchargement visible pour tout le monde (peu importe la note)
+          zoneTelechargement.classList.remove('hidden');
+          
+          // 5. Ouvrir le cadre des résultats de fin de stage
           document.getElementById('bloc-resultat').classList.remove('hidden');
         } else {
           // Si aucune note n'est prête en BDD

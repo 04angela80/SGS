@@ -1,663 +1,584 @@
 <?php
-// 1. Connexion à la base de données
-require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../config/notifications_moteur.php';
+session_start();
+// ── CONFIGURATION ET CONNEXIONS ──────────────────────────────────────────────
+require_once __DIR__ . '/../../config/db.php';                
+$admin_id = $_SESSION['admin_id'] ?? 1;
 
-$messages = [];
+// ── GESTION DU TEMPS : 4 SEMAINES STRICTES PAR MOIS ─────────────────────────
+$annee_courante = 2026;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'add_task') {
-        $stagiaire_id = isset($_POST['stagiaire_id']) ? intval($_POST['stagiaire_id']) : 0;
-        $description = trim($_POST['description'] ?? '');
-
-        if ($stagiaire_id <= 0 || $description === '') {
-            $messages[] = 'Veuillez sélectionner un stagiaire et décrire la tâche à ajouter.';
-        } else {
-            try {
-                $stmt = $bdd->prepare("INSERT INTO taches (stagiaire_id, description, statut, date_attribution) VALUES (:stagiaire_id, :description, 'en_cours', NOW())");
-                $stmt->execute([
-                    'stagiaire_id' => $stagiaire_id,
-                    'description' => $description,
-                ]);
-
-                ajouterNotification(
-                    $bdd,
-                    $stagiaire_id,
-                    'stagiaire',
-                    'Nouvelle tâche attribuée',
-                    'Une nouvelle tâche vient de vous être attribuée : "' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '".',
-                    'non_lu'
-                );
-
-                header('Location: suivi.php?msg=' . urlencode('Tâche ajoutée avec succès.'));
-                exit();
-            } catch (PDOException $e) {
-                $messages[] = 'Erreur lors de l’ajout de la tâche : ' . $e->getMessage();
-            }
-        }
-    } elseif ($action === 'add_presence') {
-        $stagiaire_id = isset($_POST['stagiaire_id']) ? intval($_POST['stagiaire_id']) : 0;
-        $date_fiche = trim($_POST['date_fiche'] ?? '');
-        $etat_presence = trim($_POST['etat_presence'] ?? 'présent');
-        $commentaire_admin = trim($_POST['commentaire_admin'] ?? '');
-
-        if ($stagiaire_id <= 0 || $date_fiche === '' || ($etat_presence !== 'présent' && $etat_presence !== 'absent')) {
-            $messages[] = 'Veuillez sélectionner un stagiaire, une date et un état de présence valide.';
-        } else {
-            try {
-                $stmt = $bdd->prepare("INSERT INTO suivi (stagiaire_id, date_fiche, etat_presence, commentaire_admin) VALUES (:stagiaire_id, :date_fiche, :etat_presence, :commentaire_admin)");
-                $stmt->execute([
-                    'stagiaire_id' => $stagiaire_id,
-                    'date_fiche' => $date_fiche,
-                    'etat_presence' => $etat_presence,
-                    'commentaire_admin' => $commentaire_admin ?: null,
-                ]);
-
-                $libelleEtat = ($etat_presence === 'présent' || $etat_presence === 'present') ? 'Présent' : 'Absent';
-                $messageCommentaire = $commentaire_admin ? ' Observation : "' . htmlspecialchars($commentaire_admin, ENT_QUOTES, 'UTF-8') . '".' : '';
-                ajouterNotification(
-                    $bdd,
-                    $stagiaire_id,
-                    'stagiaire',
-                    'Nouveau pointage enregistré',
-                    'Votre présence du ' . date('d/m/Y', strtotime($date_fiche)) . ' a été enregistrée comme ' . $libelleEtat . '.' . $messageCommentaire,
-                    'non_lu'
-                );
-
-                header('Location: suivi.php?msg=' . urlencode('Pointage ajouté avec succès.'));
-                exit();
-            } catch (PDOException $e) {
-                $messages[] = 'Erreur lors de l’ajout du pointage : ' . $e->getMessage();
-            }
-        }
-    }
+if (isset($_GET['action_mois']) && !empty($_GET['mois_choisi'])) {
+    $mois_actuel_vue = $_GET['mois_choisi']; 
+} else {
+    $mois_actuel_vue = isset($_GET['mois_contexte']) ? trim($_GET['mois_contexte']) : date('Y-m');
 }
 
-if (isset($_GET['msg']) && trim($_GET['msg']) !== '') {
-    $messages[] = htmlspecialchars($_GET['msg'], ENT_QUOTES, 'UTF-8');
+if (substr($mois_actuel_vue, 0, 4) !== "2026") {
+    $mois_actuel_vue = "2026-" . date('m');
 }
 
-try {
-    $sqlStg = "SELECT s.id, s.nom, s.prenom, s.filiere, s.service AS service_demande, ser.nom_service, ser.nom_encadrant 
-               FROM stagiaires s
-               LEFT JOIN services ser ON COALESCE(s.id_service_affecte, 0) = ser.id_service
-               WHERE LOWER(s.statut) = 'validé' OR LOWER(s.statut) = 'valide'
-               ORDER BY s.nom ASC";
-    $stmtStg = $bdd->query($sqlStg);
-    $stagiaires = $stmtStg->fetchAll(PDO::FETCH_ASSOC);
-
-    $sqlT = "SELECT stagiaire_id, description, statut, date_attribution FROM taches ORDER BY date_attribution DESC";
-    $allTaches = $bdd->query($sqlT)->fetchAll(PDO::FETCH_ASSOC);
-
-    $taches_organisees = [];
-    foreach ($allTaches as $t) {
-        $id_stg = $t['stagiaire_id'];
-        $prefixe = ($t['statut'] === 'terminé' || $t['statut'] === 'Terminé') ? '🟢 [Terminé] ' : '🟡 [En cours] ';
-        $taches_organisees[$id_stg][] = $prefixe . $t['description'] . " (du " . date('d/m/Y', strtotime($t['date_attribution'])) . ")";
-    }
-
-    $sqlS = "SELECT stagiaire_id, date_fiche, etat_presence, commentaire_admin FROM suivi ORDER BY date_fiche DESC";
-    $allSuivi = $bdd->query($sqlS)->fetchAll(PDO::FETCH_ASSOC);
-
-    $presences_organisees = [];
-    $absences_organisees = [];
-    $total_presents_global = 0;
-    $total_absents_global = 0;
-
-    foreach ($allSuivi as $s) {
-        $id_stg = $s['stagiaire_id'];
-        $date_f = date('d/m/Y', strtotime($s['date_fiche']));
-        $com = !empty($s['commentaire_admin']) ? " - Obs: " . $s['commentaire_admin'] : "";
+function get4SemainesFixesDuMois2026($annee, $mois) {
+    $semaines = [];
+    $premierJourMois = new DateTime("$annee-$mois-01");
+    
+    for ($indexSem = 0; $indexSem < 4; $indexSem++) {
+        $debutSemaine = clone $premierJourMois;
+        $debutSemaine->modify("+" . ($indexSem * 7) . " days");
         
-        $etat = strtolower(trim($s['etat_presence']));
-        if ($etat === 'présent' || $etat === 'present') {
-            $presences_organisees[$id_stg][] = "📅 Présent le " . $date_f . $com;
-            $total_presents_global++;
-        } else {
-            $absences_organisees[$id_stg][] = "❌ Absent le " . $date_f . $com;
-            $total_absents_global++;
+        if ($debutSemaine->format('N') == 6) { $debutSemaine->modify('+2 days'); }
+        elseif ($debutSemaine->format('N') == 7) { $debutSemaine->modify('+1 day'); }
+        
+        $lundi = clone $debutSemaine;
+        if ($lundi->format('N') != 1) {
+            $lundi->modify('last monday');
         }
-    }
+        
+        $joursSemaine = [];
+        $noms = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+        
+        for ($i = 0; $i < 5; $i++) {
+            $d = clone $lundi;
+            if ($i > 0) { $d->modify("+$i days"); }
+            $joursSemaine[] = [
+                'nom'   => $noms[$i], 
+                'date'  => $d->format('Y-m-d'), 
+                'label' => $d->format('d/m')
+            ];
+        }
 
-} catch (PDOException $e) {
-    die("Erreur de synchronisation BDD : " . $e->getMessage());
+        $semaines[] = [
+            'num_global' => (int)$lundi->format('W'),
+            'jours' => $joursSemaine
+        ];
+    }
+    return $semaines;
 }
+
+list($yyyy, $mm) = explode('-', $mois_actuel_vue);
+$listeSemainesDuMois = get4SemainesFixesDuMois2026($yyyy, $mm);
+
+$index_semaine_choisie = isset($_GET['index_sem_mois']) ? intval($_GET['index_sem_mois']) : 0;
+if ($index_semaine_choisie < 0) { $index_semaine_choisie = 0; }
+if ($index_semaine_choisie >= 4) { $index_semaine_choisie = 3; }
+
+$semaine_active_data = $listeSemainesDuMois[$index_semaine_choisie];
+$num_semaine_annee_strict = $semaine_active_data['num_global'];
+$semaine = $semaine_active_data['jours'];
+
+$url_prev = ($index_semaine_choisie > 0) 
+  ? "?mois_contexte=$mois_actuel_vue&index_sem_mois=" . ($index_semaine_choisie - 1) 
+  : "#";
+$url_next = ($index_semaine_choisie < 3) 
+  ? "?mois_contexte=$mois_actuel_vue&index_sem_mois=" . ($index_semaine_choisie + 1) 
+  : "#";
+
+// ── CHARGEMENT STRICT DES STAGIAIRES DONT LE DOSSIER EST VALIDÉ ─────────────
+try {
+    $sql = "SELECT s.*, 
+                   ser.description AS nom_service, 
+                   ser.nom_encadrant 
+            FROM stagiaires s 
+            LEFT JOIN services ser ON LOWER(TRIM(ser.nom_service)) = LOWER(TRIM(s.filiere)) 
+            WHERE LOWER(TRIM(s.statut)) IN ('valide', 'validé', 'validée', '1', 'actif')
+            ORDER BY s.id DESC";
+    $stmt = $bdd->query($sql);
+    $stagiaires = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) { 
+    try {
+        $sql = "SELECT * FROM stagiaires 
+                WHERE LOWER(TRIM(statut)) IN ('valide', 'validé', 'validée', '1', 'actif') 
+                ORDER BY id DESC";
+        $stagiaires = $bdd->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    } catch(PDOException $ex) {
+        $stagiaires = array();
+    }
+}
+
+$listeMois = array(
+    '2026-01' => 'Janvier 2026', '2026-02' => 'Février 2026', '2026-03' => 'Mars 2026',
+    '2026-04' => 'Avril 2026',   '2026-05' => 'Mai 2026',     '2026-06' => 'Juin 2026',
+    '2026-07' => 'Juillet 2026', '2026-08' => 'Août 2026',    '2026-09' => 'Septembre 2026',
+    '2026-10' => 'Octobre 2026', '2026-11' => 'Novembre 2026','2026-12' => 'Décembre 2026'
+);
+
+// BANQUE SIMULÉE DE TÂCHES PAR SEMAINE
+$banque_taches_par_semaine = [
+    0 => [
+        ["description" => "Installation et prise en main de l'environnement de travail", "statut" => "valide"],
+        ["description" => "Lecture de la documentation technique et architecture globale", "statut" => "valide"],
+        ["description" => "Première rédaction du journal de bord hebdomadaire", "statut" => "valide"]
+    ],
+    1 => [
+        ["description" => "Analyse et diagnostic des dysfonctionnements signalés", "statut" => "valide"],
+        ["description" => "Implémentation du module principal et tests unitaires", "statut" => "en_cours"],
+        ["description" => "Rédaction du rapport d'étape préliminaire", "statut" => "a_refaire"]
+    ],
+    2 => [
+        ["description" => "Correction des anomalies identifiées en revue de code", "statut" => "valide"],
+        ["description" => "Optimisation des performances et nettoyage de la base", "statut" => "valide"],
+        ["description" => "Préparation des cas de test d'intégration", "statut" => "en_cours"]
+    ],
+    3 => [
+        ["description" => "Recette fonctionnelle finale et validation des livrables", "statut" => "valide"],
+        ["description" => "Rédaction du rapport de synthèse mensuel", "statut" => "valide"],
+        ["description" => "Présentation orale du bilan devant l'encadrant", "statut" => "valide"]
+    ]
+];
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Administration - Suivi Général</title>
+  <title>SGS – Tableau de Bord & Suivi Stagiaires</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    :root {
-      --bg-main: #f0f8ff; /* On garde ton fond bleu azur très léger d'origine */
-      --primary: #0056b3;
-      --primary-dark: #003d80;
-      --accent: #2563eb;
-      --accent-light: #eff6ff;
-      --text-main: #334155;
-      --text-muted: #64748b;
-      --border-color: #cbd5e1;
-      --success: #10b981;
-      --danger: #ef4444;
-    }
+  :root {
+    --primary-blue: #0056b3;
+    --dark-blue: #003d80;
+    --bg-global: #f8fafc;
+    --text-main: #334155;
+    --border-color: #cbd5e1;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+  }
 
-    body { 
-      margin: 0; 
-      font-family: 'Segoe UI', Arial, sans-serif; 
-      background: var(--bg-main); 
-      color: var(--text-main);
-    }
-    
-    /* === HEADER SUPERIEUR D'ORIGINE === */
-    .top-header { 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      right: 0; 
-      height: 60px; 
-      background: linear-gradient(90deg, var(--primary), var(--primary-dark)); 
-      color: #fff; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      padding: 0 20px; 
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
-      z-index: 1000; 
-    }
-    .top-header .header-title { 
-      font-size: 1.4em; 
-      font-weight: bold; 
-      margin: 0; 
-      position: absolute; 
-      left: 50%; 
-      transform: translateX(-50%); 
-    }
-    
-    /* === BOUTON MENU D'ORIGINE === */
-    .menu-btn { 
-      position: fixed; 
-      top: 13px; 
-      left: 15px; 
-      background: rgba(255, 255, 255, 0.15); 
-      color: #fff; 
-      padding: 8px 14px; 
-      cursor: pointer; 
-      border-radius: 5px; 
-      z-index: 1001; 
-      display: inline-flex; 
-      align-items: center; 
-      gap: 6px; 
-      font-weight: bold;
-      font-size: 0.9em;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      transition: background 0.2s;
-    }
-    .menu-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-global); color: var(--text-main); }
 
-    /* === SIDEBAR COULISSANTE D'ORIGINE === */
-    .sidebar { 
-      position: fixed; 
-      left: -250px; 
-      top: 0; 
-      width: 250px; 
-      height: 100vh; 
-      background: linear-gradient(180deg, var(--primary), var(--primary-dark)); 
-      color: #fff; 
-      padding: 20px; 
-      box-sizing: border-box;
-      transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-      z-index: 999; 
-      overflow-y: auto; 
-      display: flex; 
-      flex-direction: column; 
-    }
-    .sidebar.show { left: 0; }
-    
-    .logo-container { margin-top: 50px; margin-bottom: 25px; text-align: center; }
-    .logo { width: 90px; height: 90px; border-radius: 50%; background: #fff; padding: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.3); object-fit: cover; }
-    
-    .sidebar ul { list-style: none; padding: 0; margin: 0; }
-    .sidebar ul li { margin: 15px 0; }
-    .sidebar ul li a { 
-      color: #fff; 
-      text-decoration: none; 
-      font-weight: bold; 
-      display: flex; 
-      align-items: center; 
-      padding: 12px 15px; 
-      border-radius: 6px; 
-      transition: background 0.2s;
-    }
-    .sidebar ul li a i { margin-right: 10px; font-size: 18px; }
-    .sidebar ul li a:hover, .sidebar ul li a.active { 
-      background: rgba(255,255,255,0.2); 
-    }
+  .top-header { 
+    position: fixed; top: 0; left: 0; right: 0; height: 60px; 
+    background: linear-gradient(90deg, #0056b3, #003d80); color: #fff; 
+    display: flex; align-items: center; justify-content: center; padding: 0 20px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; 
+  }
+  .top-header .header-title { font-size: 1.25em; font-weight: bold; margin: 0; }
+  .top-header .header-icons { position: absolute; right: 20px; display: flex; gap: 15px; font-size: 22px; cursor: pointer; }
+    .top-header .header-icons span:hover { transform: scale(1.1); }
+  
+  .menu-btn { 
+    position: fixed; top: 12px; left: 15px; background: #0056b3; color: #fff; 
+    padding: 8px 14px; cursor: pointer; border-radius: 5px; z-index: 1001; 
+    display: inline-flex; align-items: center; gap: 8px; font-weight: bold;
+  }
 
-    /* === CONTENU GENERAL AJUSTE AVEC MARGE SUPERIEURE === */
-    .container { 
-      padding: 100px 30px 40px 30px; 
-      max-width: 1200px; 
-      margin: 0 auto; 
-      box-sizing: border-box;
-    }
-    
-    h2 { 
-      color: var(--primary); 
-      margin-top: 0;
-      margin-bottom: 6px; 
-      font-size: 1.7em; 
-      font-weight: 700;
-    }
-    .page-subtitle {
-      margin: 0 0 30px 0;
-      color: var(--text-muted);
-      font-size: 0.95em;
-    }
+  .sidebar { 
+    position: fixed; left: -260px; top: 0; width: 250px; height: 100vh; 
+    background: linear-gradient(180deg, #0056b3, #003d80); color: #fff; 
+    padding: 20px; transition: left 0.3s ease; z-index: 999; display: flex; flex-direction: column; 
+  }
+  .sidebar.show { left: 0; }
+  .logo-container { margin-top: 40px; margin-bottom: 20px; text-align: center; }
+  .logo { width: 80px; height: 80px; border-radius: 50%; background: #fff; padding: 4px; }
 
-    /* === FLASH MESSAGES === */
-    .flash-box { 
-      background: var(--accent-light); 
-      border: 1px solid #93c5fd; 
-      color: #1d4ed8; 
-      padding: 14px 20px; 
-      border-radius: 10px; 
-      margin-bottom: 24px;
-      font-size: 0.95em;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 4px 12px rgba(59,130,246,0.05);
-    }
+  .sidebar ul { list-style: none; padding: 0; margin: 0; }
+  .sidebar ul li { margin: 12px 0; }
+  .sidebar ul li a { color: #fff; text-decoration: none; font-weight: bold; display: flex; align-items: center; white-space: nowrap; padding: 10px 15px; border-radius: 6px; transition: background 0.3s; }
+  .sidebar ul li a i { margin-right: 8px; font-size: 18px; flex-shrink: 0; }
+  .sidebar ul li a:hover, .sidebar ul li a.active { background: rgba(255,255,255,0.2); }
+  .logout { margin-top: 5px; } 
 
-    /* === CARTES DE STATISTIQUES HARMONIEUSES === */
-    .stats-grid { 
-      display: grid; 
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
-      gap: 24px; 
-      margin-bottom: 35px; 
-    }
-    .card-stat { 
-      background: #fff; 
-      padding: 20px 24px; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-      border: 1px solid rgba(0,0,0,0.02);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .card-stat-info h4 { margin: 0; color: var(--text-muted); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
-    .card-stat-info p { margin: 6px 0 0 0; font-size: 1.7em; font-weight: 700; color: var(--text-main); }
-    .card-stat-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    .card-stat-icon.presence { background: #ecfdf5; color: var(--success); }
-    .card-stat-icon.absence { background: #fef2f2; color: var(--danger); }
+  .sidebar-footer { margin-top: 15px; text-align: center; padding-bottom: 50px; }
+  .sidebar-divider { height: 1.5px; background: #ffffff; margin: 10px 0; border: none; }
+  .footer-text { font-size: 13px; color: #ffffff; font-weight: 600; letter-spacing: 0.5px; line-height: 1.4; }
+  .footer-sub { font-size: 11px; display: block; font-weight: 400; color: #f1f5f9; margin-top: 2px; }
+   
+  .main-wrapper { margin-top: 75px; padding: 20px; max-width: 1200px; margin-left: auto; margin-right: auto; }
 
-    /* === TABLEAU CONTENANT ET STYLE === */
-    .table-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-      overflow: hidden;
-      margin-bottom: 40px;
-      border: 1px solid rgba(0,0,0,0.03);
-    }
-    .suivi-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .suivi-table th { background: #f8fafc; color: var(--text-muted); font-weight: 600; font-size: 0.85em; text-transform: uppercase; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
-    .suivi-table td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-size: 0.95em; vertical-align: middle; }
-    .suivi-table tr:last-child td { border-bottom: none; }
-    .suivi-table tr:hover td { background-color: #fafbfc; }
-    
-    .stg-name { font-weight: 600; color: #0f172a; }
-    .stg-filiere { color: var(--text-muted); font-size: 0.9em; }
-    .encadrant-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; font-weight: 500; color: #475569; }
+  /* FILTRE & NAVIGATION PAR SEMAINE */
+  .filter-dashboard-bar { background: #ffffff; padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+  .row-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
-    /* === BOUTONS ACTIONS CELLULES === */
-    .actions-cell { display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn-action { 
-      background: #f8fafc; 
-      color: var(--text-main); 
-      border: 1px solid #e2e8f0; 
-      padding: 8px 14px; 
-      border-radius: 6px; 
-      cursor: pointer; 
-      display: inline-flex; 
-      align-items: center; 
-      gap: 6px; 
-      font-weight: 600; 
-      font-size: 0.85em; 
-      transition: all 0.2s; 
-    }
-    .btn-action:hover { background: #f1f5f9; border-color: #cbd5e1; }
-    .btn-action i { color: var(--primary); }
-    .btn-action.btn-presence i { color: var(--success); }
-    .btn-action.btn-absence i { color: var(--danger); }
+  .select-month-input { border: 1px solid var(--border-color); border-radius: 6px; padding: 7px 12px; font-weight: bold; background: #fff; color: #0f172a; }
+  
+  .week-nav-container { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 6px 14px; border-radius: 6px; border: 1px solid #e2e8f0; }
+  .btn-nav-week { text-decoration: none; color: #0056b3; font-weight: bold; padding: 4px 10px; border-radius: 4px; background: #fff; border: 1px solid #cbd5e1; transition: all 0.2s; }
+  .btn-nav-week:hover { background: #0056b3; color: #fff; }
+  .btn-nav-week.disabled { color: #94a3b8; pointer-events: none; background: #f8fafc; border-color: #e2e8f0; }
 
-    /* === FORMULAIRES ACTION BLOCS === */
-    .admin-actions { 
-      display: grid; 
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); 
-      gap: 30px; 
-    }
-    .action-card { 
-      background: white; 
-      padding: 26px; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-      border: 1px solid rgba(0,0,0,0.02);
-    }
-    .action-card h3 { margin: 0 0 20px 0; font-size: 1.15em; color: #0f172a; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .action-card label { display: block; margin-bottom: 6px; color: var(--text-main); font-weight: 600; font-size: 0.9em; }
-    
-    .form-group { margin-bottom: 16px; }
-    .action-card select,
-    .action-card textarea,
-    .action-card input[type="date"] { 
-      width: 100%; 
-      padding: 10px 14px; 
-      border-radius: 8px; 
-      border: 1px solid #cbd5e1; 
-      font-size: 0.95em; 
-      color: #0f172a; 
-      box-sizing: border-box; 
-      background-color: #fff;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .action-card select:focus,
-    .action-card textarea:focus,
-    .action-card input[type="date"]:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
-    }
-    .radio-group { display: flex; gap: 20px; padding: 4px 0; }
-    .radio-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
-    
-    .btn-submit {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-weight: 600;
-      font-size: 0.95em;
-      cursor: pointer;
-      transition: opacity 0.2s;
-      margin-top: 8px;
-    }
-    .btn-submit:hover { opacity: 0.9; }
-    .btn-submit.task { background: var(--primary); }
-    .btn-submit.presence { background: var(--success); }
+  .search-input { width: 100%; padding: 12px 14px 12px 40px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 20px; outline: none; box-sizing: border-box; font-size: 0.95em; }
 
-    /* === DIALOG MODALE NETTOYEE === */
-    dialog { 
-      border: none; 
-      border-radius: 16px; 
-      padding: 26px; 
-      width: 500px; 
-      max-width: 90%; 
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); 
-      background: #ffffff; 
-    }
-    dialog::backdrop { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(3px); }
-    
-    .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-    .modal-header h3 { margin: 0; font-size: 1.2em; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-    .close-btn { cursor: pointer; font-size: 20px; color: var(--text-muted); }
-    .close-btn:hover { color: #000; }
-    
-    .modal-subheader { font-size: 0.9em; color: var(--text-muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-    .modal-subheader span { font-weight: 600; color: #0f172a; }
+  /* DESIGN CARTE STAGIAIRE & PULSEURS */
+  .stagiaire-card { background: #ffffff; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s; }
+  .stagiaire-card:hover { border-color: #94a3b8; box-shadow: 0 4px 12px rgba(0,0,0,0.07); }
+  
+  .stagiaire-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; background: #ffffff; border-bottom: 1px solid #f1f5f9; }
+  .stg-meta { display: flex; align-items: center; gap: 14px; }
+  .stg-avatar { width: 46px; height: 46px; border-radius: 50%; background: #e0f2fe; color: #0369a1; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1em; border: 1px solid #bae6fd; }
+  .stg-name { font-weight: 700; color: #0f172a; font-size: 1.1em; }
 
-    dialog ul { list-style: none; padding: 0; margin: 0; max-height: 280px; overflow-y: auto; }
-    dialog ul li { background: #f8fafc; margin-bottom: 8px; padding: 12px 14px; border-radius: 8px; font-size: 0.9em; border-left: 4px solid var(--primary); color: var(--text-main); line-height: 1.5; }
-    dialog ul li.no-data { border-left-color: var(--text-muted); color: var(--text-muted); font-style: italic; background: #fafafa; }
+  /* SYSTEME DE PULSEURS VISUELS */
+  .pulse-container { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .pulse-dot { width: 12px; height: 12px; border-radius: 50%; position: relative; }
+  
+  .pulse-green { background-color: #16a34a; box-shadow: 0 0 0 rgba(22, 163, 74, 0.4); animation: pulse-green-anim 2s infinite; }
+  @keyframes pulse-green-anim {
+    0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+  }
+
+  .pulse-orange { background-color: #d97706; box-shadow: 0 0 0 rgba(217, 119, 6, 0.4); animation: pulse-orange-anim 1.5s infinite; }
+  @keyframes pulse-orange-anim {
+    0% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(217, 119, 6, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+  }
+
+  .pulse-red { background-color: #dc2626; box-shadow: 0 0 0 rgba(220, 38, 38, 0.4); animation: pulse-red-anim 1s infinite; }
+  @keyframes pulse-red-anim {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.8); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+
+  /* PULSEUR GRIS NEUTRE POUR LES NOUVEAUX STAGIAIRES */
+  .pulse-gray { background-color: #94a3b8; }
+
+  /* ACCORDÉON BODY */
+  .stagiaire-body { display: none; padding: 22px; background: #ffffff; border-top: 1px solid #e2e8f0; }
+  .stagiaire-card.open .stagiaire-body { display: block; }
+
+  .rapport-title { font-size: 1.05em; font-weight: 700; color: #0f172a; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+  .synthese-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  @media(max-width: 768px){ .synthese-grid { grid-template-columns: 1fr; } }
+
+  .progress-bar-bg { background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+  .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+
+  .badge-status { padding: 6px 14px; border-radius: 20px; font-size: 0.85em; font-weight: bold; display: inline-block; text-align: center; }
+  .badge-status.regulier { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .badge-status.irregulier { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  .badge-status.negligent { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .badge-status.attente { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
+  .week-days-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+  .day-box-mini { border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 4px; text-align: center; background: #fff; }
+  .badge-pa { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 6px auto; font-weight: bold; font-size: 12px; }
+  .badge-pa.p { background: #dcfce7; color: #15803d; }
+  .badge-pa.a { background: #fee2e2; color: #b91c1c; }
+  .badge-pa.attente { background: #f1f5f9; color: #94a3b8; }
+
+  .actions-row { display: flex; gap: 12px; justify-content: flex-end; margin-top: 18px; }
+  .btn-download { background: #0056b3; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .btn-download:hover { background: #003d80; }
   </style>
 </head>
 <body>
 
-  <!-- HEADER SUPERIEUR D'ORIGINE -->
-  <div class="top-header">
-    <h1 class="header-title"><i class="fas fa-thumbtack"></i> Suivi des tâches & Encadrement</h1>
-  </div>
-
-  <!-- BOUTON MENU D'ORIGINE -->
-  <div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
-
-  <!-- SIDEBAR FIXE D'ORIGINE -->
-  <aside class="sidebar" id="sidebar">
-    <div class="logo-container">
-      <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo">
+<div class="top-header">
+  <h1 class="header-title"><i class="fas fa-thumbtack"></i> Consultation & Suivi Hebdomadaire</h1>
+  <div class="header-icons">
+      <span class="admin"><i class="fas fa-user-shield"></i></span>
     </div>
-    <ul>
-      <li><a href="liste.php" ><i class="fas fa-home"></i> Accueil</a></li>
+</div>
+
+<div class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i> Menu</div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo-container">
+    <img src="../../LOGO.jpeg" alt="Logo SGS" class="logo" onerror="this.style.display='none'">
+  </div>
+  <ul>
+      <li><a href="liste.php"><i class="fas fa-home"></i> Accueil</a></li>
       <li><a href="gestion.php"><i class="fas fa-users"></i> Gestion des stagiaires</a></li>
-      <li><a href="evaluations.html"><i class="fas fa-chart-bar"></i> Évaluation & Résultats</a></li>
-      <li><a href="suivi.php"class="active"><i class="fas fa-thumbtack"></i> Suivi des taches</a></li>
+      <li><a href="suivi.php" class="active"><i class="fas fa-chart-bar"></i> Suivi des stagiaires</a></li>
       <li><a href="rapport.php"><i class="fas fa-thumbtack"></i> Rapports</a></li>
+      <li><a href="evaluations.php"><i class="fas fa-file-alt"></i> Évaluation & Résultats</a></li>
       <li><a href="SERVICE.php"><i class="fas fa-tools"></i> Services</a></li>
       <li class="logout"><a href="../../public/index.php"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
-    </ul>
-  </aside>
-
-  <!-- CONTENU RE-HARMONISÉ -->
-  <main class="container">
-    
-    <h2>Contrôle Administratif des Objectifs</h2>
-    <p class="page-subtitle">Pilotez l'activité et validez la présence en temps réel des stagiaires actifs.</p>
-
-    <?php if (!empty($messages)): ?>
-      <?php foreach ($messages as $message): ?>
-        <div class="flash-box">
-          <i class="fas fa-info-circle"></i>
-          <span><?php echo htmlspecialchars($message); ?></span>
-        </div>
-      <?php endforeach; ?>
-    <?php endif; ?>
-
-    <!-- STATS GLOBAL -->
-    <section class="stats-grid">
-      <div class="card-stat">
-        <div class="card-stat-info">
-          <h4>Présences Cumulées (Système)</h4>
-          <p><?php echo $total_presents_global; ?> Jours</p>
-        </div>
-        <div class="card-stat-icon presence">
-          <i class="fas fa-calendar-check"></i>
-        </div>
+  </ul>
+  <div class="sidebar-footer">
+      <hr class="sidebar-divider">
+      <div class="footer-text">
+        <span><i class="fas fa-user-shield"></i> SGS • Admin</span>
+        <span class="footer-sub">Système de Gestion des Stagiaires @2026</span>
       </div>
-      <div class="card-stat">
-        <div class="card-stat-info">
-          <h4>Absences Cumulées (Système)</h4>
-          <p><?php echo $total_absents_global; ?> Jours</p>
-        </div>
-        <div class="card-stat-icon absence">
-          <i class="fas fa-calendar-times"></i>
-        </div>
-      </div>
-    </section>
+  </div>
+</aside>
 
-    <!-- VRAI TABLEAU EPURÉ ET MODERNE -->
-    <div class="table-container">
-      <table class="suivi-table">
-        <thead>
-          <tr>
-            <th>Stagiaire</th>
-            <th>Filière</th>
-            <th>Encadrant Responsable</th>
-            <th style="width: 360px;">Actions de Suivi</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if(empty($stagiaires)): ?>
-            <tr><td colspan="4" style="color: var(--text-muted); text-align: center; padding: 30px;">Aucun stagiaire validé actif dans le système.</td></tr>
-          <?php else: ?>
-            <?php foreach($stagiaires as $stg): ?>
-              <?php 
-                $id_stg = $stg['id'];
-                $taches_js = isset($taches_organisees[$id_stg]) ? $taches_organisees[$id_stg] : [];
-                $presences_js = isset($presences_organisees[$id_stg]) ? $presences_organisees[$id_stg] : [];
-                $absences_js = isset($absences_organisees[$id_stg]) ? $absences_organisees[$id_stg] : [];
-                
-                $nom_complet = htmlspecialchars(strtoupper($stg['nom']) . " " . $stg['prenom'], ENT_QUOTES, 'UTF-8');
-                
-                if (!empty($stg['nom_encadrant'])) {
-                    $encadrant_name = "M./Mme " . htmlspecialchars($stg['nom_encadrant']) . " (" . htmlspecialchars($stg['nom_service']) . ")";
-                } else {
-                    $encadrant_name = "En attente d'affectation (" . htmlspecialchars($stg['service_demande']) . ")";
-                }
-              ?>
-              <tr>
-                <td>
-                  <div class="stg-name"><?php echo $nom_complet; ?></div>
-                </td>
-                <td><span class="stg-filiere"><?php echo htmlspecialchars($stg['filiere']); ?></span></td>
-                <td>
-                  <span class="encadrant-badge" style="<?php echo empty($stg['nom_encadrant']) ? 'color: var(--text-muted); font-style: italic;' : ''; ?>">
-                    <i class="fas fa-user-tie" style="color: #a4b5cb;"></i> <?php echo $encadrant_name; ?>
-                  </span>
-                </td>
-                <td>
-                  <div class="actions-cell">
-                    <button class="btn-action" onclick="ouvrirModale('<?php echo addslashes($nom_complet); ?>', 'Missions & Objectifs', <?php echo htmlspecialchars(json_encode($taches_js), ENT_QUOTES, 'UTF-8'); ?>, 'fa-tasks', 'var(--primary)')">
-                      <i class="fas fa-tasks"></i> Tâches
-                    </button>
-                    <button class="btn-action btn-presence" onclick="ouvrirModale('<?php echo addslashes($nom_complet); ?>', 'Historique des Présences', <?php echo htmlspecialchars(json_encode($presences_js), ENT_QUOTES, 'UTF-8'); ?>, 'fa-calendar-check', 'var(--success)')">
-                      <i class="fas fa-calendar-check"></i> Présences
-                    </button>
-                    <button class="btn-action btn-absence" onclick="ouvrirModale('<?php echo addslashes($nom_complet); ?>', 'Historique des Absences', <?php echo htmlspecialchars(json_encode($absences_js), ENT_QUOTES, 'UTF-8'); ?>, 'fa-calendar-times', 'var(--danger)')">
-                      <i class="fas fa-calendar-times"></i> Absences
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
+<div class="main-wrapper">
+  
+  <!-- BARRE DE FILTRE ET SELECTION DES SEMAINES -->
+  <div class="filter-dashboard-bar">
+    <div class="row-controls">
+      <form method="GET" action="" style="display:inline-flex; align-items:center; gap:8px;">
+        <input type="hidden" name="action_mois" value="1">
+        <label><strong>Période : </strong></label>
+        <select name="mois_choisi" class="select-month-input" onchange="this.form.submit()">
+          <?php foreach ($listeMois as $valMois => $labelMois): ?>
+            <option value="<?= $valMois ?>" <?= ($mois_actuel_vue === $valMois) ? 'selected' : '' ?>><?= $labelMois ?></option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+
+      <div class="week-nav-container">
+        <a href="<?= $url_prev ?>" class="btn-nav-week <?= ($index_semaine_choisie == 0) ? 'disabled' : '' ?>">
+          <i class="fas fa-chevron-left"></i> Précédente
+        </a>
+        <strong style="font-size:0.9em; color:#1e293b;">
+          Semaine <?= ($index_semaine_choisie + 1) ?> (du <?= $semaine[0]['label'] ?> au <?= $semaine[4]['label'] ?> 2026)
+        </strong>
+        <a href="<?= $url_next ?>" class="btn-nav-week <?= ($index_semaine_choisie == 3) ? 'disabled' : '' ?>">
+          Suivante <i class="fas fa-chevron-right"></i>
+        </a>
+      </div>
     </div>
+  </div>
 
-    <!-- Saisie Formulaires -->
-    <section class="admin-actions">
-      
-      <!-- AJOUT TACHE -->
-      <div class="action-card">
-        <h3><i class="fas fa-plus-circle" style="color: var(--primary);"></i> Ajouter une tâche</h3>
-        <form method="POST">
-          <input type="hidden" name="action" value="add_task">
-          
-          <div class="form-group">
-            <label for="task-stagiaire">Stagiaire concerné</label>
-            <select id="task-stagiaire" name="stagiaire_id" required>
-              <option value="">Sélectionnez un stagiaire validé</option>
-              <?php foreach ($stagiaires as $stg): ?>
-                <option value="<?php echo $stg['id']; ?>"><?php echo htmlspecialchars(strtoupper($stg['nom']) . ' ' . $stg['prenom']); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
+  <!-- RECHERCHE RECTANGLE INSTANTANÉE -->
+  <div style="position:relative;">
+    <i class="fas fa-search" style="position:absolute; left:14px; top:14px; color:#94a3b8;"></i>
+    <input type="text" id="stgSearch" class="search-input" placeholder="Rechercher instantanément un stagiaire par nom ou filière..." onkeyup="filterStagiaires()">
+  </div>
 
-          <div class="form-group">
-            <label for="description">Description de la tâche</label>
-            <textarea id="description" name="description" rows="3" required placeholder="Ex: Participer à la réunion de projet..."></textarea>
-          </div>
-
-          <button type="submit" class="btn-submit task">Ajouter la tâche</button>
-        </form>
+  <!-- LISTE DES STAGIAIRES OU MESSAGE EN CAS DE BASE VIDE -->
+  <div id="stagiairesList">
+    <?php if (empty($stagiaires)): ?>
+      <div style="background:#fff; padding:40px; text-align:center; border-radius:8px; border:1px solid #cbd5e1; color:#64748b;">
+        <i class="fas fa-user-slash" style="font-size:2.5em; margin-bottom:10px; color:#94a3b8;"></i>
+        <p style="font-size:1.1em; font-weight:bold; margin:0;">Aucun stagiaire dont l'inscription est validée n'a été trouvé.</p>
+        <p style="font-size:0.9em; margin-top:5px;">Veuillez valider des inscriptions depuis la section "Gestion des stagiaires".</p>
       </div>
+    <?php else: ?>
+      <?php 
+      // Obtenir l'ID le plus élevé pour simuler automatiquement le stagiaire le plus récent inscrit
+      $max_id = max(array_column($stagiaires, 'id') ?: [0]);
 
-      <!-- AJOUT POINTAGE -->
-      <div class="action-card">
-        <h3><i class="fas fa-check-square" style="color: var(--success);"></i> Ajouter un pointage</h3>
-        <form method="POST">
-          <input type="hidden" name="action" value="add_presence">
+      foreach ($stagiaires as $stg): 
+        $sid = $stg['id'] ?? $stg['id_stagiaire'] ?? 1;
+        $nom = htmlspecialchars($stg['nom'] ?? 'Nom');
+        $prenom = htmlspecialchars($stg['prenom'] ?? 'Prénom');
+        $filiere_txt = htmlspecialchars($stg['filiere'] ?? $stg['domaine'] ?? 'Informatique / Réseaux');
+        
+        // Nom de l'encadrant
+        $nom_encadreur = !empty($stg['nom_encadrant']) ? htmlspecialchars($stg['nom_encadrant']) : "Non assigné";
+
+        // ── SIMULATION DYNAMIQUE : NOUVEAU STAGIAIRE EN ATTENTE ─────────────
+        // Si le stagiaire a un champ spécifique ou s'il s'agit du plus récent inscrit/validé (ID max)
+        $est_nouveau = (isset($stg['est_nouveau']) && $stg['est_nouveau'] == 1) || ($sid == $max_id && count($stagiaires) > 1);
+
+        if ($est_nouveau) {
+            // Un nouveau stagiaire validé est EN ATTENTE
+            $pulse_class = "pulse-gray";
+            $pulse_label = "En attente";
+            $status_class = "attente";
+            $p_count = 0; 
+            $a_count = 0;
+            $taches_actuelles = [];
+        } else {
+            // Simulation pour les stagiaires plus anciens
+            $variation_semaine = ($sid + $index_semaine_choisie) % 4;
+
+            if ($variation_semaine == 0) { $p_count = 5; $a_count = 0; } 
+            elseif ($variation_semaine == 1) { $p_count = 4; $a_count = 1; } 
+            elseif ($variation_semaine == 2) { $p_count = 3; $a_count = 2; } 
+            else { $p_count = 2; $a_count = 3; }
+
+            if ($a_count == 0) {
+                $pulse_class = "pulse-green";
+                $pulse_label = "Régulier (100%)";
+                $status_class = "regulier";
+            } elseif ($a_count <= 2) {
+                $pulse_class = "pulse-orange";
+                $pulse_label = "Vigilance ($a_count abs)";
+                $status_class = "irregulier";
+            } else {
+                $pulse_class = "pulse-red";
+                $pulse_label = "Négligent ($a_count abs)";
+                $status_class = "negligent";
+            }
+
+            $taches_actuelles = $banque_taches_par_semaine[$index_semaine_choisie];
+        }
+      ?>
+        <div class="stagiaire-card" data-fullname="<?= strtolower($nom.' '.$prenom.' '.$filiere_txt) ?>">
           
-          <div class="form-group">
-            <label for="presence-stagiaire">Stagiaire concerné</label>
-            <select id="presence-stagiaire" name="stagiaire_id" required>
-              <option value="">Sélectionnez un stagiaire validé</option>
-              <?php foreach ($stagiaires as $stg): ?>
-                <option value="<?php echo $stg['id']; ?>"><?php echo htmlspecialchars(strtoupper($stg['nom']) . ' ' . $stg['prenom']); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
+          <!-- EN-TÊTE ACCORDÉON AVEC PULSEUR LUMINEUX -->
+          <div class="stagiaire-header" onclick="toggleStagiaire(<?= $sid ?>)">
+            <div class="stg-meta">
+              <div class="stg-avatar"><?= mb_strtoupper(mb_substr($prenom,0,1).mb_substr($nom,0,1)) ?></div>
+              <div>
+                <div class="stg-name"><?= $nom.' '.$prenom ?></div>
+                <div style="font-size:0.85em; color:#64748b; font-weight:600;"><i class="fas fa-graduation-cap"></i> <?= $filiere_txt ?></div>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label for="date_fiche">Date</label>
-            <input type="date" id="date_fiche" name="date_fiche" required>
-          </div>
-
-          <div class="form-group">
-            <label>État de présence</label>
-            <div class="radio-group">
-              <label><input type="radio" name="etat_presence" value="présent" checked> <span style="color: var(--success); font-weight:600;">Présent</span></label>
-              <label><input type="radio" name="etat_presence" value="absent"> <span style="color: var(--danger); font-weight:600;">Absent</span></label>
+            <!-- BLOC INDICATEUR LUMINOSITÉ / PULSEUR -->
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div class="pulse-container">
+                <div class="pulse-dot <?= $pulse_class ?>"></div>
+                <span style="font-size:0.82em; font-weight:bold; color:#334155;"><?= $pulse_label ?></span>
+              </div>
+              <i class="fas fa-chevron-down" style="color: #64748b; transition:transform 0.2s;" id="icon-stg-<?= $sid ?>"></i>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="commentaire_admin">Commentaire / Observation</label>
-            <textarea id="commentaire_admin" name="commentaire_admin" rows="1" placeholder="Ex: Travail de qualité, retard justifié (Optionnel)"></textarea>
+          <!-- CONTENU RAPPORT DÉROULANT -->
+          <div class="stagiaire-body" id="body-stg-<?= $sid ?>">
+            
+            <div class="rapport-title">
+              <i class="fas fa-user-check" style="color:#0056b3;"></i> Encadrant du Service : <span style="color:#0056b3; margin-left:4px;"><?= $nom_encadreur ?></span>
+            </div>
+
+            <div class="synthese-grid">
+              
+              <!-- CÔTÉ GAUCHE : ASSIDUITÉ ET POINTAGE SEMAINE -->
+              <div>
+                <strong style="font-size:0.85em; text-transform:uppercase; color:#475569;"><i class="fas fa-calendar-check"></i> Bilan d'Assiduité — Semaine <?= ($index_semaine_choisie + 1) ?></strong>
+                
+                <?php if ($est_nouveau): ?>
+                  <!-- AFFICHAGE SIMULÉ "EN ATTENTE" POUR NOUVEAU STAGIAIRE -->
+                  <div style="font-size:0.95em; font-weight:bold; margin-top:10px; color:#64748b;">
+                    Taux de présence : En attente
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: 0%; background: #94a3b8;"></div>
+                  </div>
+
+                  <div style="margin-top:12px;">
+                    <span class="badge-status attente"><i class="fas fa-clock"></i> En attente</span>
+                  </div>
+
+                  <div style="margin-top:16px;">
+                    <strong style="font-size:0.82em; color:#64748b; display:block; margin-bottom:6px;">Détail des jours :</strong>
+                    <div class="week-days-row">
+                      <?php foreach ($semaine as $j): ?>
+                        <div class="day-box-mini">
+                          <div style="font-size:.7em; font-weight:bold; color:#475569;"><?= $j['nom'] ?></div>
+                          <div class="badge-pa attente" title="En attente">-</div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+
+                <?php else: ?>
+                  <!-- AFFICHAGE POUR STAGIAIRE ACTIF EN COURS -->
+                  <div style="font-size:0.95em; font-weight:bold; margin-top:10px;">
+                    Taux de présence : <?= round(($p_count/5)*100) ?>% (<?= $p_count ?> jours présent, <?= $a_count ?> absent)
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: <?= ($p_count/5)*100 ?>%; background: <?= $a_count == 0 ? '#16a34a' : ($a_count <= 2 ? '#d97706' : '#dc2626') ?>;"></div>
+                  </div>
+
+                  <div style="margin-top:12px;">
+                    <span class="badge-status <?= $status_class ?>">Statut Semaine <?= ($index_semaine_choisie + 1) ?> : <?= $pulse_label ?></span>
+                  </div>
+
+                  <div style="margin-top:16px;">
+                    <strong style="font-size:0.82em; color:#64748b; display:block; margin-bottom:6px;">Détail des jours :</strong>
+                    <div class="week-days-row">
+                      <?php foreach ($semaine as $idx => $j): ?>
+                        <div class="day-box-mini">
+                          <div style="font-size:.7em; font-weight:bold; color:#475569;"><?= $j['nom'] ?></div>
+                          <?php if ($idx < $p_count): ?>
+                            <div class="badge-pa p" title="Présent">P</div>
+                          <?php else: ?>
+                            <div class="badge-pa a" title="Absent">A</div>
+                          <?php endif; ?>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                <?php endif; ?>
+              </div>
+
+              <!-- CÔTÉ DROIT : TÂCHES SPÉCIFIQUES DE LA SEMAINE -->
+              <div>
+                <strong style="font-size:0.85em; text-transform:uppercase; color:#475569;"><i class="fas fa-tasks"></i> Tâches de la Semaine <?= ($index_semaine_choisie + 1) ?></strong>
+                
+                <?php if ($est_nouveau || empty($taches_actuelles)): ?>
+                  <!-- SIMULATION TÂCHES EN ATTENTE -->
+                  <div style="font-size:0.95em; font-weight:bold; margin-top:10px; color:#64748b;">
+                    Avancement des travaux : En attente
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: 0%; background: #94a3b8;"></div>
+                  </div>
+
+                  <div style="margin-top:16px; background:#f1f5f9; padding:12px; border-radius:6px; color:#64748b; font-size:0.88em; border:1px dashed #cbd5e1;">
+                    <i class="fas fa-hourglass-half"></i> En attente d'attribution des tâches pour ce nouveau stagiaire.
+                  </div>
+
+                <?php else: 
+                  $valides = array_filter($taches_actuelles, fn($t) => $t['statut'] === 'valide');
+                  $count_valides = count($valides);
+                  $total_t = count($taches_actuelles);
+                  $pct_t = round(($count_valides / $total_t) * 100);
+                ?>
+                  <div style="font-size:0.95em; font-weight:bold; margin-top:10px;">
+                    Avancement des travaux : <?= $count_valides ?> / <?= $total_t ?> validées
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: <?= $pct_t ?>%; background: #16a34a;"></div>
+                  </div>
+
+                  <div style="margin-top:14px;">
+                    <ul style="margin: 0; padding-left: 18px; font-size: 0.88em;">
+                      <?php foreach ($taches_actuelles as $tk): ?>
+                        <li style="margin-bottom: 8px;">
+                          <strong><?= htmlspecialchars($tk['description']) ?></strong> — 
+                          <?php if ($tk['statut'] === 'valide'): ?>
+                            <span style="color:#16a34a; font-weight:bold;"><i class="fas fa-check-circle"></i> Validée</span>
+                          <?php elseif ($tk['statut'] === 'en_cours'): ?>
+                            <span style="color:#0056b3; font-weight:bold;"><i class="fas fa-spinner"></i> En cours</span>
+                          <?php else: ?>
+                            <span style="color:#dc2626; font-weight:bold;"><i class="fas fa-exclamation-circle"></i> À refaire</span>
+                          <?php endif; ?>
+                        </li>
+                      <?php endforeach; ?>
+                    </ul>
+                  </div>
+                <?php endif; ?>
+              </div>
+
+            </div>
+
+            <!-- ACTION BOUTON IMPRIMER -->
+            <div class="actions-row">
+              <button type="button" class="btn-download" onclick="window.print()">
+                <i class="fas fa-file-pdf"></i> Imprimer / Exporter le Rapport
+              </button>
+            </div>
+
           </div>
+        </div>
+      <?php endforeach; ?>
+    <?php endif; ?>
+  </div>
 
-          <button type="submit" class="btn-submit presence">Ajouter le pointage</button>
-        </form>
-      </div>
+</div>
 
-    </section>
-  </main>
+<script>
+// Menu latéral
+function toggleMenu() {
+  document.getElementById('sidebar').classList.toggle('show');
+}
 
-  <!-- MODALE NATIVE FLUIDE -->
-  <dialog id="modalNatif">
-    <div class="modal-header">
-      <h3 id="modalTitle">Titre</h3>
-      <span class="close-btn" onclick="fermerModale()"><i class="fas fa-times"></i></span>
-    </div>
-    <div class="modal-subheader">Stagiaire : <span id="modalStagiaire"></span></div>
-    <ul id="modalList"></ul>
-  </dialog>
+// Déroulement accordéon
+function toggleStagiaire(id) {
+  const card = document.getElementById('body-stg-' + id).parentElement;
+  const icon = document.getElementById('icon-stg-' + id);
+  
+  card.classList.toggle('open');
+  if (card.classList.contains('open')) {
+    icon.style.transform = "rotate(180deg)";
+  } else {
+    icon.style.transform = "rotate(0deg)";
+  }
+}
 
-  <script>
-    // Initialiser le champ Date par défaut sur aujourd'hui
-    document.getElementById('date_fiche').valueAsDate = new Date();
+// Recherche instantanée
+function filterStagiaires() {
+  const val = document.getElementById('stgSearch').value.toLowerCase().trim();
+  const cards = document.querySelectorAll('.stagiaire-card');
 
-    function toggleMenu() { 
-      document.getElementById('sidebar').classList.toggle('show'); 
-    }
+  cards.forEach(card => {
+    const name = card.getAttribute('data-fullname') || '';
+    card.style.display = name.includes(val) ? 'block' : 'none';
+  });
+}
+</script>
 
-    function ouvrirModale(nomStagiaire, typeSuivi, donnees, iconeClasse, couleurBord) {
-      const dialog = document.getElementById('modalNatif');
-      document.getElementById('modalTitle').innerHTML = '<i class="fas ' + iconeClasse + '"></i> ' + typeSuivi;
-      document.getElementById('modalTitle').querySelector('i').style.color = couleurBord;
-      document.getElementById('modalStagiaire').innerText = nomStagiaire;
-      
-      let ul = document.getElementById('modalList');
-      ul.innerHTML = "";
-      
-      if (!donnees || donnees.length === 0) {
-        let li = document.createElement('li');
-        li.className = "no-data";
-        li.innerHTML = "<i class='fas fa-info-circle'></i> Aucune donnée enregistrée dans taches/suivi pour le moment.";
-        ul.appendChild(li);
-      } else {
-        donnees.forEach(item => {
-          let li = document.createElement('li');
-          li.innerText = item;
-          li.style.borderLeftColor = couleurBord;
-          ul.appendChild(li);
-        });
-      }
-      dialog.showModal();
-    }
-
-    function fermerModale() { 
-      document.getElementById('modalNatif').close(); 
-    }
-  </script>
 </body>
 </html>
