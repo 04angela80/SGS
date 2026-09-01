@@ -143,6 +143,25 @@ $total_notifs_admin = compterNotificationsNonLues($bdd, $admin_id, 'admin');
     .status-refuse { background-color: #fee2e2; color: #991b1b; }
 
     @keyframes bell-ring { 0% { transform: rotate(-15deg); } 100% { transform: rotate(15deg); } }
+    /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
   </style>
 </head>
 <body>

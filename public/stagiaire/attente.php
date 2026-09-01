@@ -46,6 +46,25 @@ if ($stagiaire_id > 0) {
         .btn:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(255, 143, 0, 0.3); }
         .btn-danger { background: linear-gradient(135deg, #ff4d4d, #c30000); }
         .btn-danger:hover { box-shadow: 0 10px 20px rgba(244, 67, 54, 0.3); }
+        /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
     </style>
 </head>
 <body>

@@ -61,6 +61,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn { width: 100%; padding: 15px; border-radius: 50px; border: none; cursor: pointer; font-size: 16px; font-weight: 700; color: #ffffff; background: linear-gradient(135deg, #38bdf8, #7c3aed); box-shadow: 0 20px 45px rgba(124,58,237,0.55); transition: all 0.35s ease; }
         .btn:hover { transform: translateY(-3px) scale(1.05); }
         .link-back { display: block; text-align: center; margin-top: 20px; color: #7c3aed; text-decoration: none; font-weight: 600; }
+        /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
     </style>
 </head>
 <body>

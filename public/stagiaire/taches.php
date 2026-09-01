@@ -249,6 +249,25 @@ try {
     }
     .status-todo { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
     .status-done { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
   </style>
 </head>
 <body>

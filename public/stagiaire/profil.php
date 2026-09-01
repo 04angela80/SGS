@@ -228,6 +228,25 @@ $afficher_alerte_succes = ($message_succes === "sauvegarde_reussie" && $completi
     #edit-form button[type="submit"]:hover { background: #059669; }
     
     .alert-succes { background: #d1fae5; color: #065f46; padding: 15px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; border: 1px solid #a7f3d0; text-align: center; }
+    /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
   </style>
 </head>
 <body>

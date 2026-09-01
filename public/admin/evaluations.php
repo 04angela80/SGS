@@ -286,6 +286,25 @@ try {
 
     .flash-box-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
     .flash-box-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+    /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
   </style>
 </head>
 <body>

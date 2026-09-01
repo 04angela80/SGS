@@ -79,6 +79,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_connexion'])) 
     .input-email { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1em; box-sizing: border-box; outline: none; margin-bottom: 15px; text-align: center; }
     .input-email:focus { border-color: #0056b3; }
     .error-msg { background: #ffeeef; color: #dc3545; padding: 10px; border-radius: 6px; border-left: 4px solid #dc3545; font-size: 0.85em; margin-bottom: 15px; text-align: left; }
+    /* Rend le tableau défilable sur mobile pour éviter qu'il ne déborde */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Sur écran mobile (téléphones) */
+@media (max-width: 768px) {
+    /* Les champs et boutons prennent toute la largeur pour être faciles à cliquer */
+    input, select, button, .btn {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+
+    /* Réduit un peu les marges internes pour gagner de la place */
+    .container, .content {
+        padding: 10px !important;
+    }
+}
   </style>
 </head>
 <body>
